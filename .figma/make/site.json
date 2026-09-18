@@ -1,0 +1,10 @@
+{
+  "description": "Delivers a clear, professional, and user-friendly responsive frontend interface that simplifies complex prompts for seamless user interaction and understanding.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
