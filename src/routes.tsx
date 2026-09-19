@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 // Public pages
 import HomePage from "./pages/public/HomePage";
-import { ServicesPage, ProductsPage, JobsPage, TourismPage, VendorStorefront } from "./pages/public/ListingPages";
+import { ServicesPage, ProductsPage, JobsPage, EventsPage,EventDetailPage, TourismPage, VendorStorefront } from "./pages/public/ListingPages";
 
 // Auth pages
 import { LoginPage, RegisterPage, BusinessRegisterPage, ForgotPasswordPage } from "./pages/auth/AuthPages";
@@ -39,6 +39,8 @@ export const router = createBrowserRouter([
   { path: "/products", Component: ProductsPage },
   { path: "/jobs", Component: JobsPage },
   { path: "/jobs/:id", Component: JobsPage },
+  { path: "/events", Component: EventsPage },
+{ path: "/events/:id", Component: EventDetailPage },
   { path: "/tourism", Component: TourismPage },
   { path: "/tourism/:id", Component: TourismPage },
   { path: "/vendor/:slug", Component: VendorStorefront },

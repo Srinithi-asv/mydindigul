@@ -1,10 +1,326 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Search, Filter, MapPin, Heart, Star, Briefcase, Calendar, Clock, ChevronDown, Building2, Package } from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
 import { services, products, jobs, tourismPlaces, businesses } from "../../data/mockData";
+import { apiFetch } from "../../api";
 import { Badge, SearchBar, Select, StatusBadge, Pagination, SkeletonCard, EmptyState, Button } from "../../components/ui";
+
+
+export function EventsPage() {
+  const [events, setEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiFetch("/events")
+      .then((data) => {
+        setEvents(data.events || []);
+      })
+      .catch((error) => {
+        console.error("Failed to load events:", error);
+      });
+  }, []);
+
+  return (
+    <>
+      <PublicHeader />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+        <h1 className="text-2xl font-bold text-slate-800">
+          Upcoming Events
+        </h1>
+
+        <p className="text-sm text-slate-500 mt-1 mb-6">
+          Discover upcoming events in Dindigul
+        </p>
+
+        {events.length === 0 ? (
+          <p className="text-slate-500">No events available.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {events.map((event) => (
+              <div
+                key={event.id}
+                className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-all"
+              >
+                <h2 className="font-bold text-slate-800">
+                  {event.title}
+                </h2>
+
+                <p className="text-sm text-slate-500 mt-2">
+                  {event.description}
+                </p>
+
+                <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
+                  <MapPin size={14} />
+                  {event.location}
+                </div>
+
+                <div className="flex items-center justify-between mt-4">
+                  <span className="font-bold text-brand-600">
+                    ₹{event.ticket_price}
+                  </span>
+
+                  <Link
+                    to={`/events/${event.id}`}
+                    className="text-sm text-brand-600 hover:underline"
+                  >
+                    View Details →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <PublicFooter />
+    </>
+  );
+}
+
+
+// ─── EVENT DETAIL PAGE ────────────────────────────────────────────────────────
+export function EventDetailPage() {
+  const [event, setEvent] = useState<any>(null);
+   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState("");
+
+  const [attendeeName, setAttendeeName] = useState("");
+const [attendeeEmail, setAttendeeEmail] = useState("");
+const [attendeePhone, setAttendeePhone] = useState("");
+const [ticketsCount, setTicketsCount] = useState(1);
+
+  const eventId = window.location.pathname.split("/").pop();
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    apiFetch(`/events/${eventId}`)
+      .then((data) => {
+        setEvent(data.event || data);
+      })
+      .catch((error) => {
+        console.error("Failed to load event:", error);
+      });
+  }, [eventId]);
+
+    const handleBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setBookingLoading(true);
+    setBookingMessage("");
+
+    try {
+      const data = await apiFetch("/event-bookings", {
+        method: "POST",
+        body: JSON.stringify({
+          event_id: event.id,
+          attendee_name: attendeeName,
+          attendee_email: attendeeEmail,
+          attendee_phone: attendeePhone,
+          tickets_count: ticketsCount,
+        }),
+      });
+
+      setBookingMessage(
+        `Booking successful! Booking Reference: ${data.event_booking.booking_reference}`
+      );
+
+      
+      setAttendeeName("");
+      setAttendeeEmail("");
+      setAttendeePhone("");
+      setTicketsCount(1);
+    } catch (error: any) {
+      setBookingMessage(
+        error.message || "Booking failed. Please try again."
+      );
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <PublicHeader />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+          <p className="text-slate-500">Loading event...</p>
+        </main>
+        <PublicFooter />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <PublicHeader />
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 text-brand-600 mb-3">
+            <Calendar size={20} />
+            <span className="font-semibold">Event Details</span>
+          </div>
+
+          <h1 className="text-2xl font-bold text-slate-800">
+            {event.title}
+          </h1>
+
+          <p className="text-slate-600 mt-4">
+            {event.description}
+          </p>
+
+          <div className="mt-6 space-y-3 text-sm text-slate-600">
+            <div className="flex items-center gap-2">
+              <MapPin size={16} />
+              <span>{event.location}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Calendar size={16} />
+              <span>{event.start_date || event.event_date || "Date not available"}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Clock size={16} />
+              <span>{event.start_time || "Time not available"}</span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-slate-200">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-xs text-slate-500">Ticket Price</p>
+      <p className="text-xl font-bold text-brand-600">
+        ₹{event.ticket_price}
+      </p>
+    </div>
+            <Button onClick={() => setShowBookingForm(true)}>
+              Book Event
+            </Button>
+          </div>
+          {showBookingForm && (
+    <form
+      onSubmit={handleBooking}
+      className="mt-6 p-5 bg-slate-50 rounded-xl border border-slate-200"
+    >
+      <h2 className="text-lg font-bold text-slate-800 mb-4">
+        Book This Event
+      </h2>
+
+      <div className="space-y-4">
+        {/* Name */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Name
+          </label>
+          <input
+            type="text"
+            value={attendeeName}
+            onChange={(e) => setAttendeeName(e.target.value)}
+            required
+            placeholder="Enter your name"
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            value={attendeeEmail}
+            onChange={(e) => setAttendeeEmail(e.target.value)}
+            required
+            placeholder="Enter your email"
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Phone
+          </label>
+          <input
+            type="tel"
+            value={attendeePhone}
+            onChange={(e) => setAttendeePhone(e.target.value)}
+            required
+            placeholder="Enter your phone number"
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+
+        {/* Tickets */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Number of Tickets
+          </label>
+          <input
+            type="number"
+            min="1"
+            max={event.available_seats || undefined}
+            value={ticketsCount}
+            onChange={(e) =>
+              setTicketsCount(Number(e.target.value))
+            }
+            required
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+
+        {/* Total */}
+        <div className="pt-2">
+          <p className="text-sm text-slate-500">
+            Total Amount
+          </p>
+          <p className="text-xl font-bold text-brand-600">
+            ₹{Number(event.ticket_price || 0) * ticketsCount}
+          </p>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="submit"
+            disabled={bookingLoading}
+          >
+            {bookingLoading ? "Booking..." : "Confirm Booking"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowBookingForm(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+
+        {/* Message */}
+        {bookingMessage && (
+          <p className="text-sm text-brand-600 font-medium">
+            {bookingMessage}
+          </p>
+        )}
+      </div>
+    </form>
+  )}
+</div>
+        </div>
+      </main>
+
+      <PublicFooter />
+    </div>
+  );
+}
+
 
 // ─── SERVICES PAGE ────────────────────────────────────────────────────────────
 export function ServicesPage() {

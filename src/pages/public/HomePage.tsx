@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Search, MapPin, Star, Heart, ArrowRight, Building2, Briefcase, Package, Globe, Utensils, Car, GraduationCap, Wrench, Hotel, ChevronRight } from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
-import { businesses, services, products, jobs, tourismPlaces } from "../../data/mockData";
+import { businesses, jobs, tourismPlaces } from "../../data/mockData";
 import { apiFetch } from "../../api";
 import { Badge, Button } from "../../components/ui";
 
@@ -11,8 +11,13 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   const [industries, setIndustries] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [jobPostings, setJobPostings] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
 
   useEffect(() => {
+
     apiFetch("/industries")
       .then((data) => {
         setIndustries(data.industries || []);
@@ -21,6 +26,47 @@ export default function HomePage() {
         console.error("Failed to load industries:", error);
       });
   }, []);
+
+  useEffect(() => {
+  apiFetch("/services")
+    .then((data) => {
+      setServices(data.services || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load services:", error);
+    });
+}, []);
+
+useEffect(() => {
+  apiFetch("/products")
+    .then((data) => {
+      setProducts(data.products || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load products:", error);
+    });
+}, []);
+
+useEffect(() => {
+  apiFetch("/job-postings")
+    .then((data) => {
+      setJobPostings(data.job_postings || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load job postings:", error);
+    });
+}, []);
+
+
+useEffect(() => {
+  apiFetch("/events")
+    .then((data) => {
+      setEvents(data.events || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load events:", error);
+    });
+}, []);
 
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
@@ -186,13 +232,13 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {services.map((s) => (
             <div key={s.id} className="flex gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all">
-              <img src={s.image} alt={s.title} className="w-20 h-20 rounded-xl object-cover shrink-0" />
+              <img src={s.banner_image_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"} alt={s.title} className="w-20 h-20 rounded-xl object-cover shrink-0" />
               <div className="flex-1 min-w-0">
-                <Badge variant="info" className="mb-1.5">{s.category}</Badge>
+                <Badge variant="info" className="mb-1.5">{s.sub_industry?.name}</Badge>
                 <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1">{s.title}</h3>
                 <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm font-bold text-brand-600">{s.price}</span>
+                  <span className="text-sm font-bold text-brand-600">₹{s.discounted_price || s.price}</span>
                   <Link to="/services" className="text-xs text-brand-600 hover:underline font-medium">View →</Link>
                 </div>
               </div>
@@ -214,13 +260,14 @@ export default function HomePage() {
               <div className="space-y-3">
                 {products.map((p) => (
                   <div key={p.id} className="flex gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-sm transition-all">
-                    <img src={p.image} alt={p.name} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+                    <img src= {p.thumbnail_url || "https://images.unsplash.com/photo-1558655146-d09347e92766"} alt={p.name}className="w-16 h-16 rounded-lg object-cover shrink-0" />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-slate-700 text-sm line-clamp-1">{p.name}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{p.vendor}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{p.vendor?.business_name}</p>
                       <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-sm font-bold text-brand-600">{p.price}</span>
-                        <Badge variant={p.availability === "In Stock" ? "success" : "warning"}>{p.availability}</Badge>
+                        <span className="text-sm font-bold text-brand-600">₹{p.sale_price || p.regular_price}</span>
+                        <Badge variant={p.stock_status === "in_stock" ? "success" : "warning"}>
+  {p.stock_status === "in_stock" ? "In Stock" : "Out of Stock"}</Badge>
                       </div>
                     </div>
                   </div>
@@ -235,21 +282,21 @@ export default function HomePage() {
                 <Link to="/jobs" className="text-sm text-brand-600 hover:underline flex items-center gap-1">Browse all <ChevronRight size={14} /></Link>
               </div>
               <div className="space-y-3">
-                {jobs.map((j) => (
+                {jobPostings.map((j) => (
                   <Link key={j.id} to={`/jobs/${j.id}`} className="flex gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-200 hover:shadow-sm transition-all block">
                     <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
                       <Briefcase size={18} className="text-brand-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-slate-700 text-sm">{j.title}</h3>
-                      <p className="text-xs text-slate-500">{j.company}</p>
+                      <p className="text-xs text-slate-500">{j.vendor?.business_name}</p>
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin size={10} />{j.location}</span>
-                        <Badge variant="info">{j.type}</Badge>
+                        <Badge variant="info">{j.job_type}</Badge>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-semibold text-brand-600">{j.salary.split("–")[0]}+</p>
+                      <p className="text-xs font-semibold text-brand-600">₹{j.salary_min}+</p>
                     </div>
                   </Link>
                 ))}
@@ -258,6 +305,60 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Events */}
+<section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+  <div className="flex items-center justify-between mb-6">
+    <div>
+      <h2 className="text-xl font-bold text-slate-800">Upcoming Events</h2>
+      <p className="text-sm text-slate-500 mt-0.5">
+        Discover upcoming events in Dindigul
+      </p>
+    </div>
+
+    <Link
+      to="/events"
+      className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+    >
+      See all <ChevronRight size={14} />
+    </Link>
+  </div>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {events.map((event) => (
+      <div
+        key={event.id}
+        className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-all"
+      >
+        <h3 className="font-bold text-slate-800 text-sm">
+          {event.title}
+        </h3>
+
+        <p className="text-xs text-slate-500 mt-2">
+          {event.description}
+        </p>
+
+        <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
+          <MapPin size={12} />
+          {event.location}
+        </div>
+
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-sm font-bold text-brand-600">
+            ₹{event.ticket_price}
+          </span>
+
+          <Link
+            to={`/events/${event.id}`}
+            className="text-xs text-brand-600 hover:underline font-medium"
+          >
+            View →
+          </Link>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
 
       {/* Tourism */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
