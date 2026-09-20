@@ -1,17 +1,48 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { MapPin, Heart, Star, ArrowLeft, Briefcase, Clock, ChevronLeft, ChevronRight, Package, CheckCircle, Building2, Calendar } from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
 import { services, products, jobs, tourismPlaces, businesses } from "../../data/mockData";
 import { Badge, Button, StatusBadge, Modal } from "../../components/ui";
+import { apiFetch } from "../../api";
 import { isWishlisted, toggleWishlist, addEnquiry, addApplication, addBooking, getCurrentUser } from "../../store";
 
 // ─── SERVICE DETAIL PAGE ──────────────────────────────────────────────────────
 export function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const service = services.find((s) => s.id === Number(id));
+  const [service, setService] = useState<any>(null);
+  const [relatedServices, setRelatedServices] = useState<any[]>([]);
+
+useEffect(() => {
+  if (!id) return;
+
+  apiFetch(`/services/${id}`)
+    .then((data) => {
+      setService(data.service || data);
+    })
+    .catch((error) => {
+      console.error("Failed to load service:", error);
+      setService(null);
+    });
+}, [id]);
+
+useEffect(() => {
+  apiFetch("/services")
+    .then((data) => {
+      setRelatedServices(
+        (data.services || [])
+          .filter((s: any) => Number(s.id) !== Number(id))
+          .slice(0, 3)
+      );
+    })
+    .catch((error) => {
+      console.error("Failed to load related services:", error);
+    });
+}, [id]);
+  
+  
   const [wishlisted, setWishlisted] = useState(() => isWishlisted("service", Number(id)));
   const [enquiryModal, setEnquiryModal] = useState(false);
   const [enquiryDone, setEnquiryDone] = useState(false);
@@ -34,13 +65,25 @@ export function ServiceDetailPage() {
     );
   }
 
-  const vendor = businesses.find((b) => b.id === service.vendorId);
-  const relatedServices = services.filter((s) => s.id !== service.id && (s.category === service.category || s.vendorId === service.vendorId)).slice(0, 3);
+  const vendor = service.vendor;
 
   const handleWishlist = () => {
-    const added = toggleWishlist({ type: "service", id: service.id, name: service.title, image: service.image, category: service.category, price: service.price, vendorId: service.vendorId, vendorName: service.vendor });
-    setWishlisted(added);
-  };
+  const added = toggleWishlist({
+    type: "service",
+    id: service.id,
+    name: service.title,
+    image:
+      service.banner_image_url ||
+      service.images?.[0] ||
+      "https://images.unsplash.com/photo-1558655146-d09347e92766",
+    category: service.sub_industry?.name || "Service",
+    price: service.discounted_price || service.price,
+    vendorId: service.vendor_id,
+    vendorName: service.vendor?.business_name || "Vendor",
+  });
+
+  setWishlisted(added);
+};
 
   const validateEnquiry = () => {
     const e: Record<string, string> = {};
@@ -51,27 +94,33 @@ export function ServiceDetailPage() {
     return Object.keys(e).length === 0;
   };
 
-  const handleEnquiry = () => {
-    if (!validateEnquiry()) return;
+const handleEnquiry = async () => {
+  if (!validateEnquiry()) return;
+
+  try {
     setSubmitting(true);
-    const currentUser = getCurrentUser();
-    setTimeout(() => {
-      addEnquiry({
-        userId: currentUser?.id || 99,
-        userName: form.name,
-        userPhone: form.phone,
-        userEmail: form.email,
-        vendorId: service.vendorId,
-        vendorName: service.vendor,
-        vendorSlug: service.vendorSlug || "",
-        serviceId: service.id,
-        serviceName: service.title,
+
+    await apiFetch("/enquiries", {
+      method: "POST",
+      body: JSON.stringify({
+        vendor_id: service.vendor_id,
+        service_id: service.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
         message: form.message,
-      });
-      setSubmitting(false);
-      setEnquiryDone(true);
-    }, 800);
-  };
+        preferred_contact_method: "call",
+      }),
+    });
+
+    setEnquiryDone(true);
+  } catch (error: any) {
+    console.error("Enquiry failed:", error);
+    alert(error.message || "Failed to submit enquiry");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -89,7 +138,15 @@ export function ServiceDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Hero image */}
             <div className="relative rounded-2xl overflow-hidden h-72">
-              <img src={service.image} alt={service.title} className="w-full h-full object-cover" />
+              <img
+  src={
+    service.banner_image_url ||
+    service.images?.[0] ||
+    "https://images.unsplash.com/photo-1497366754035-f200968a6e72"
+  }
+  alt={service.title}
+  className="w-full h-full object-cover"
+/>
               <button
                 onClick={handleWishlist}
                 aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
@@ -98,7 +155,7 @@ export function ServiceDetailPage() {
                 <Heart size={18} fill={wishlisted ? "#f97316" : "none"} className={wishlisted ? "text-brand-500" : "text-slate-400"} />
               </button>
               <div className="absolute bottom-4 left-4 flex gap-2">
-                <Badge variant="info">{service.category}</Badge>
+                <Badge variant="info">{service.sub_industry?.name || "Service"}</Badge>
                 <StatusBadge status={service.status || "active"} />
               </div>
             </div>
@@ -107,31 +164,15 @@ export function ServiceDetailPage() {
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h1 className="text-2xl font-bold text-slate-800 mb-2">{service.title}</h1>
               <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-4">
-                <span className="flex items-center gap-1"><MapPin size={14} />{service.location}</span>
-                <span className="text-brand-600 font-bold text-base">{service.price}</span>
+                <span className="flex items-center gap-1"><MapPin size={14} />{service.service_area || "Dindigul"}</span>
+                <span className="text-brand-600 font-bold text-base">₹{service.discounted_price || service.price}</span>
               </div>
               <p className="text-slate-600 leading-relaxed">{service.description}</p>
             </div>
+            </div>
 
-            {/* Related Services */}
-            {relatedServices.length > 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <h3 className="font-bold text-slate-800 mb-4">Related Services</h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {relatedServices.map((s) => (
-                    <Link key={s.id} to={`/services/${s.id}`} className="flex gap-3 p-3 bg-slate-50 rounded-xl hover:bg-brand-50 transition-colors">
-                      <img src={s.image} alt={s.title} className="w-14 h-14 rounded-lg object-cover shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-slate-700 line-clamp-1">{s.title}</p>
-                        <p className="text-xs text-slate-500">{s.vendor}</p>
-                        <p className="text-sm font-bold text-brand-600 mt-0.5">{s.price}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+    
+          
 
           {/* Sidebar */}
           <div className="space-y-4">
@@ -140,22 +181,23 @@ export function ServiceDetailPage() {
               <div className="bg-white rounded-xl border border-slate-200 p-5">
                 <h3 className="font-bold text-slate-700 mb-3 text-sm uppercase tracking-wide">Service Provider</h3>
                 <div className="flex items-center gap-3 mb-3">
-                  <img src={vendor.logo} alt={vendor.name} className="w-12 h-12 rounded-xl object-cover border border-slate-200" />
+                  <img src= {vendor.logo_url ||
+    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43"} alt={vendor.business_name} className="w-12 h-12 rounded-xl object-cover border border-slate-200" />
                   <div>
-                    <p className="font-bold text-slate-800 text-sm">{vendor.name}</p>
-                    <p className="text-xs text-brand-600">{vendor.category}</p>
-                    {vendor.plan === "premium" && <Badge variant="premium" className="mt-0.5">⭐ Premium</Badge>}
+                    <p className="font-bold text-slate-800 text-sm">{vendor.business_name}</p>
+                    <p className="text-xs text-brand-600">{vendor.tagline || "Service Provider"}</p>
+                    {vendor.plan_type === "premium" && <Badge variant="premium" className="mt-0.5">⭐ Premium</Badge>}
                   </div>
                 </div>
                 <div className="space-y-1.5 text-xs text-slate-500 mb-4">
-                  <p className="flex items-center gap-1"><MapPin size={11} />{vendor.location}</p>
+                  <p className="flex items-center gap-1"><MapPin size={11} />{vendor.city || "Dindigul"}</p>
                   <p>📞 {vendor.phone}</p>
                 </div>
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={12} fill={i < Math.floor(vendor.rating) ? "#f97316" : "none"} className={i < Math.floor(vendor.rating) ? "text-brand-500" : "text-slate-300"} />
+                    <Star key={i} size={12} fill={i < Math.floor(vendor.avg_rating || 0) ? "#f97316" : "none"} className={i < Math.floor(vendor.rating) ? "text-brand-500" : "text-slate-300"} />
                   ))}
-                  <span className="text-xs text-slate-500 ml-1">{vendor.rating} ({vendor.reviewCount})</span>
+                  <span className="text-xs text-slate-500 ml-1">{vendor.avg_rating || 0} ({vendor.review_count || 0})</span>
                 </div>
                 <Link to={`/vendor/${vendor.slug}`} className="block text-center text-xs font-semibold text-brand-600 bg-brand-50 py-2 rounded-lg hover:bg-brand-100 transition-colors">
                   View Full Profile →
@@ -181,7 +223,7 @@ export function ServiceDetailPage() {
       <Modal isOpen={enquiryModal} onClose={() => { setEnquiryModal(false); setEnquiryDone(false); setForm({ name: "", phone: "", email: "", message: "" }); }} title="Send Enquiry">
         {!enquiryDone ? (
           <div className="space-y-3">
-            <p className="text-sm text-slate-500 -mt-2">For: <strong>{service.title}</strong> · {service.vendor}</p>
+            <p className="text-sm text-slate-500 -mt-2">For: <strong>{service.title}</strong> · {service.vendor?.business_name || "Vendor"}</p>
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1">Full Name *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your name" className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 ${errors.name ? "border-rose-400" : "border-slate-300"}`} />
@@ -223,12 +265,28 @@ export function ServiceDetailPage() {
 
 // ─── PRODUCT DETAIL PAGE ──────────────────────────────────────────────────────
 export function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const product = products.find((p) => p.id === Number(id));
-  const [wishlisted, setWishlisted] = useState(() => isWishlisted("product", Number(id)));
+ const { id } = useParams<{ id: string }>();
+const [product, setProduct] = useState<any>(null);
+const [wishlisted, setWishlisted] = useState(() =>
+  isWishlisted("product", Number(id))
+);
+
+useEffect(() => {
+  if (!id) return;
+
+  apiFetch(`/products/${id}`)
+    .then((data) => {
+      setProduct(data.product || data);
+    })
+    .catch((error) => {
+      console.error("Failed to load product:", error);
+      setProduct(null);
+    });
+}, [id]);
   const [activeImg, setActiveImg] = useState(0);
   const [enquiryModal, setEnquiryModal] = useState(false);
   const [enquiryDone, setEnquiryDone] = useState(false);
+ 
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
 
@@ -246,35 +304,45 @@ export function ProductDetailPage() {
     );
   }
 
-  const vendor = businesses.find((b) => b.id === product.vendorId);
+  const vendor = product.vendor;
   const relatedProducts = products.filter((p) => p.id !== product.id && (p.category === product.category || p.vendorId === product.vendorId)).slice(0, 4);
-  const images = (product as any).images || [product.image];
+ const images =
+  product.gallery_urls?.length > 0
+    ? product.gallery_urls
+    : [
+        product.thumbnail_url ||
+          "https://images.unsplash.com/photo-1558655146-d09347e92766",
+      ];
 
   const handleWishlist = () => {
     const added = toggleWishlist({ type: "product", id: product.id, name: product.name, image: product.image, category: product.category, price: product.price, vendorId: product.vendorId, vendorName: product.vendor });
     setWishlisted(added);
   };
 
-  const handleEnquiry = () => {
+  const handleEnquiry = async () => {
+  try {
     setSubmitting(true);
-    const currentUser = getCurrentUser();
-    setTimeout(() => {
-      addEnquiry({
-        userId: currentUser?.id || 99,
-        userName: form.name || "Guest",
-        userPhone: form.phone || "",
-        userEmail: form.email || "",
-        vendorId: product.vendorId,
-        vendorName: product.vendor,
-        vendorSlug: (product as any).vendorSlug || "",
-        productId: product.id,
-        productName: product.name,
-        message: form.message || `Interested in ${product.name}`,
-      });
-      setSubmitting(false);
-      setEnquiryDone(true);
-    }, 800);
-  };
+
+    await apiFetch("/enquiries", {
+  method: "POST",
+  body: JSON.stringify({
+    vendor_id: product.vendor_id,
+    product_id: product.id,
+    name: form.name,
+    email: form.email,
+    phone: form.phone,
+    message: form.message || `Interested in ${product.name}`,
+    preferred_contact_method: "call",
+  }),
+});
+    setEnquiryDone(true);
+  } catch (error: any) {
+    console.error("Enquiry failed:", error);
+    alert(error.message || "Failed to submit enquiry");
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -313,13 +381,25 @@ export function ProductDetailPage() {
           {/* Details */}
           <div className="space-y-4">
             <div>
-              <Badge variant="info" className="mb-2">{product.category}</Badge>
+              <Badge variant="info" className="mb-2"> {product.sub_industry?.name || "Product"}</Badge>
               <h1 className="text-2xl font-bold text-slate-800 mb-2">{product.name}</h1>
-              <p className="text-sm text-slate-500">by <Link to={`/vendor/${(product as any).vendorSlug}`} className="text-brand-600 hover:underline font-medium">{product.vendor}</Link></p>
+             <p className="text-sm text-slate-500">
+  by{" "}
+  <Link
+    to={`/vendor/${product.vendor?.slug || ""}`}
+    className="text-brand-600 hover:underline font-medium"
+  >
+    {product.vendor?.business_name || "Vendor"}
+  </Link>
+</p>
             </div>
             <div className="flex items-center gap-4">
-              <p className="text-3xl font-bold text-brand-600">{product.price}</p>
-              <Badge variant={product.availability === "In Stock" ? "success" : "warning"}>{product.availability}</Badge>
+              <p className="text-3xl font-bold text-brand-600"> ₹{product.sale_price || product.regular_price}</p>
+              <Badge
+  variant={product.stock_status === "in_stock" ? "success" : "warning"}
+>
+  {product.stock_status === "in_stock" ? "In Stock" : "Out of Stock"}
+</Badge>
             </div>
             <p className="text-slate-600 leading-relaxed">{product.description}</p>
             <div className="flex gap-3">
@@ -331,10 +411,17 @@ export function ProductDetailPage() {
             {vendor && (
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center gap-3 mb-2">
-                  <img src={vendor.logo} alt={vendor.name} className="w-10 h-10 rounded-lg object-cover" />
+                  <img
+  src={
+    vendor.logo_url ||
+    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43"
+  }
+  alt={vendor.business_name}
+  className="w-10 h-10 rounded-lg object-cover"
+/>
                   <div>
-                    <p className="font-semibold text-slate-700 text-sm">{vendor.name}</p>
-                    <p className="text-xs text-slate-500">{vendor.location}</p>
+                    <p className="font-semibold text-slate-700 text-sm"> {vendor.business_name}</p>
+                    <p className="text-xs text-slate-500">{vendor.city || "Dindigul"}</p>
                   </div>
                 </div>
                 <Link to={`/vendor/${vendor.slug}`} className="text-xs font-semibold text-brand-600 hover:underline">View Store →</Link>
@@ -759,3 +846,5 @@ export function TourismDetailPage() {
     </div>
   );
 }
+
+

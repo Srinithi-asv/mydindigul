@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router";
 // Public pages
 import HomePage from "./pages/public/HomePage";
 import { ServicesPage, ProductsPage, JobsPage, EventsPage,EventDetailPage, TourismPage, VendorStorefront } from "./pages/public/ListingPages";
+import { ProductDetailPage, ServiceDetailPage } from "./pages/public/DetailPages";
 
 // Auth pages
 import { LoginPage, RegisterPage, BusinessRegisterPage, ForgotPasswordPage } from "./pages/auth/AuthPages";
@@ -36,7 +37,9 @@ export const router = createBrowserRouter([
   // Public routes
   { path: "/", Component: HomePage },
   { path: "/services", Component: ServicesPage },
+  { path: "/services/:id", Component: ServiceDetailPage },
   { path: "/products", Component: ProductsPage },
+  { path: "/products/:id", Component: ProductDetailPage },
   { path: "/jobs", Component: JobsPage },
   { path: "/jobs/:id", Component: JobsPage },
   { path: "/events", Component: EventsPage },

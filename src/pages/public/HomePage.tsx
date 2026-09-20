@@ -258,22 +258,41 @@ useEffect(() => {
                 <Link to="/products" className="text-sm text-brand-600 hover:underline flex items-center gap-1">See all <ChevronRight size={14} /></Link>
               </div>
               <div className="space-y-3">
-                {products.map((p) => (
-                  <div key={p.id} className="flex gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-sm transition-all">
-                    <img src= {p.thumbnail_url || "https://images.unsplash.com/photo-1558655146-d09347e92766"} alt={p.name}className="w-16 h-16 rounded-lg object-cover shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-700 text-sm line-clamp-1">{p.name}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{p.vendor?.business_name}</p>
-                      <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-sm font-bold text-brand-600">₹{p.sale_price || p.regular_price}</span>
-                        <Badge variant={p.stock_status === "in_stock" ? "success" : "warning"}>
-  {p.stock_status === "in_stock" ? "In Stock" : "Out of Stock"}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+  {products.map((p) => (
+    <Link
+      key={p.id}
+      to={`/products/${p.id}`}
+      className="flex gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-sm transition-all"
+    >
+      <img
+        src={p.thumbnail_url || "https://images.unsplash.com/photo-1558655146-d09347e92766"}
+        alt={p.name}
+        className="w-16 h-16 rounded-lg object-cover shrink-0"
+      />
+
+      <div className="flex-1 min-w-0">
+        <h3 className="font-semibold text-slate-700 text-sm line-clamp-1">
+          {p.name}
+        </h3>
+
+        <p className="text-xs text-slate-400 mt-0.5">
+          {p.vendor?.business_name}
+        </p>
+
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-sm font-bold text-brand-600">
+            ₹{p.sale_price || p.regular_price}
+          </span>
+
+          <Badge variant={p.stock_status === "in_stock" ? "success" : "warning"}>
+            {p.stock_status === "in_stock" ? "In Stock" : "Out of Stock"}
+          </Badge>
+        </div>
+      </div>
+    </Link>
+  ))}
+</div>
+</div>
 
             {/* Jobs */}
             <div>

@@ -328,79 +328,210 @@ export function ServicesPage() {
   const [industry, setIndustry] = useState("");
   const [page, setPage] = useState(1);
   const [wishlist, setWishlist] = useState<number[]>([]);
+  const [services, setServices] = useState<any[]>([]);
 
-  const filtered = services.filter((s) =>
-    (!q || s.title.toLowerCase().includes(q.toLowerCase()) || s.vendor.toLowerCase().includes(q.toLowerCase())) &&
-    (!industry || s.category === industry)
+  useEffect(() => {
+    apiFetch("/services")
+      .then((data) => {
+        setServices(data.services || []);
+      })
+      .catch((error) => {
+        console.error("Failed to load services:", error);
+      });
+  }, []);
+
+  const filtered = services.filter(
+    (s) =>
+      (!q ||
+        s.title?.toLowerCase().includes(q.toLowerCase()) ||
+        s.vendor?.business_name
+          ?.toLowerCase()
+          .includes(q.toLowerCase())) &&
+      (!industry || s.sub_industry?.name === industry)
   );
+
+  const categories = [
+    ...new Set(
+      services
+        .map((s) => s.sub_industry?.name)
+        .filter(Boolean)
+    ),
+  ].map((name) => ({
+    value: name as string,
+    label: name as string,
+  }));
 
   return (
     <div className="min-h-screen bg-slate-50">
       <PublicHeader />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
         {/* Page header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Services in Dindigul</h1>
-          <p className="text-slate-500 text-sm mt-1">{filtered.length} services found</p>
+          <h1 className="text-2xl font-bold text-slate-800">
+            Services in Dindigul
+          </h1>
+
+          <p className="text-slate-500 text-sm mt-1">
+            {filtered.length} services found
+          </p>
         </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 flex flex-col sm:flex-row gap-3">
-          <SearchBar placeholder="Search services..." value={q} onChange={setQ} className="flex-1" />
+
+          <SearchBar
+            placeholder="Search services..."
+            value={q}
+            onChange={setQ}
+            className="flex-1"
+          />
+
           <Select
-            options={[{ value: "Catering", label: "Catering" }, { value: "Vehicle Service", label: "Vehicle Service" }, { value: "Tutoring", label: "Tutoring" }, { value: "Healthcare", label: "Healthcare" }, { value: "Security", label: "Security" }]}
+            options={categories}
             placeholder="All Categories"
             value={industry}
             onChange={setIndustry}
             className="w-48"
           />
+
           <Select
-            options={[{ value: "asc", label: "Price: Low to High" }, { value: "desc", label: "Price: High to Low" }, { value: "rating", label: "Top Rated" }]}
+            options={[
+              { value: "asc", label: "Price: Low to High" },
+              { value: "desc", label: "Price: High to Low" },
+              { value: "rating", label: "Top Rated" },
+            ]}
             placeholder="Sort by"
             className="w-44"
           />
         </div>
 
         {filtered.length === 0 ? (
-          <EmptyState icon={<Package size={48} />} title="No services found" description="Try adjusting your search or filters." />
+          <EmptyState
+            icon={<Package size={48} />}
+            title="No services found"
+            description="Try adjusting your search or filters."
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
               {filtered.map((s) => (
-                <div key={s.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                <div
+                  key={s.id}
+                  className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                >
+
+                  {/* Image */}
                   <div className="relative h-44">
-                    <img src={s.image} alt={s.title} className="w-full h-full object-cover" />
+                    <img
+                      src={
+                        s.banner_image_url ||
+                        "https://images.unsplash.com/photo-1497366754035-f200968a6e72"
+                      }
+                      alt={s.title}
+                      className="w-full h-full object-cover"
+                    />
+
                     <button
-                      onClick={() => setWishlist((prev) => prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id])}
+                      onClick={() =>
+                        setWishlist((prev) =>
+                          prev.includes(s.id)
+                            ? prev.filter((x) => x !== s.id)
+                            : [...prev, s.id]
+                        )
+                      }
                       className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow hover:scale-110 transition-transform"
                     >
-                      <Heart size={14} fill={wishlist.includes(s.id) ? "#f97316" : "none"} className={wishlist.includes(s.id) ? "text-brand-500" : "text-slate-400"} />
+                      <Heart
+                        size={14}
+                        fill={
+                          wishlist.includes(s.id)
+                            ? "#f97316"
+                            : "none"
+                        }
+                        className={
+                          wishlist.includes(s.id)
+                            ? "text-brand-500"
+                            : "text-slate-400"
+                        }
+                      />
                     </button>
-                    <Badge variant="info" className="absolute bottom-3 left-3">{s.category}</Badge>
+
+                    <Badge
+                      variant="info"
+                      className="absolute bottom-3 left-3"
+                    >
+                      {s.sub_industry?.name || "Service"}
+                    </Badge>
                   </div>
+
+                  {/* Details */}
                   <div className="p-4">
-                    <h3 className="font-bold text-slate-800 text-sm mb-1">{s.title}</h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mb-3">{s.description}</p>
+
+                    <h3 className="font-bold text-slate-800 text-sm mb-1">
+                      {s.title}
+                    </h3>
+
+                    <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                      {s.short_description || s.description}
+                    </p>
+
                     <div className="flex items-center justify-between">
+
                       <div>
-                        <p className="text-xs text-slate-500">{s.vendor}</p>
-                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5"><MapPin size={10} />{s.location}</div>
+                        <p className="text-xs text-slate-500">
+                          {s.vendor?.business_name || "Vendor"}
+                        </p>
+
+                        <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                          <MapPin size={10} />
+                          {s.service_area || "Dindigul"}
+                        </div>
                       </div>
+
                       <div className="text-right">
-                        <p className="text-sm font-bold text-brand-600">{s.price}</p>
-                        <Link to={`/vendor/${s.vendorId}`} className="text-xs text-brand-600 hover:underline font-medium">View →</Link>
+
+                        <p className="text-sm font-bold text-brand-600">
+                          ₹{s.discounted_price || s.price}
+                        </p>
+
+                        {s.duration && (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {s.duration}
+                          </p>
+                        )}
+
+                        {s.vendor?.slug && (
+                          <Link
+                            to={`/services/${s.id}`}
+                            className="text-xs text-brand-600 hover:underline font-medium"
+                          >
+                            View →
+                          </Link>
+                        )}
+
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
+
             </div>
+
             <div className="mt-6">
-              <Pagination page={page} total={filtered.length * 4} perPage={6} onChange={setPage} />
+              <Pagination
+                page={page}
+                total={filtered.length * 4}
+                perPage={6}
+                onChange={setPage}
+              />
             </div>
           </>
         )}
       </div>
+
       <PublicFooter />
     </div>
   );
@@ -411,9 +542,20 @@ export function ProductsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [wishlist, setWishlist] = useState<number[]>([]);
+   const [products, setProducts] = useState<any[]>([]);
+
+     useEffect(() => {
+    apiFetch("/products")
+      .then((data) => {
+        setProducts(data.products || []);
+      })
+      .catch((error) => {
+        console.error("Failed to load products:", error);
+      });
+  }, []);
 
   const filtered = products.filter((p) =>
-    !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.vendor.toLowerCase().includes(q.toLowerCase())
+    !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.vendor?.business_name?.toLowerCase().includes(q.toLowerCase())
   );
 
   return (
@@ -438,25 +580,52 @@ export function ProductsPage() {
             {filtered.map((p) => (
               <div key={p.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
                 <div className="relative h-44">
-                  <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => setWishlist((prev) => prev.includes(p.id) ? prev.filter((x) => x !== x) : [...prev, p.id])}
-                    className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow hover:scale-110 transition-transform"
-                  >
-                    <Heart size={14} fill={wishlist.includes(p.id) ? "#f97316" : "none"} className={wishlist.includes(p.id) ? "text-brand-500" : "text-slate-400"} />
-                  </button>
+                  <img
+  src={
+    p.thumbnail_url ||
+    "https://images.unsplash.com/photo-1558655146-d09347e92766"
+  }
+  alt={p.name}
+  className="w-full h-full object-cover"
+/>
+
+                 <button
+  onClick={() =>
+    setWishlist((prev) =>
+      prev.includes(p.id)
+        ? prev.filter((x) => x !== x)
+        : [...prev, p.id]
+    )
+  }
+  className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow hover:scale-110 transition-transform"
+>
+  <Heart
+    size={14}
+    fill={wishlist.includes(p.id) ? "#f97316" : "none"}
+    className={
+      wishlist.includes(p.id)
+        ? "text-brand-500"
+        : "text-slate-400"
+    }
+  />
+</button>
                 </div>
                 <div className="p-4">
-                  <Badge variant="info" className="mb-2">{p.category}</Badge>
+                  <Badge variant="info" className="mb-2"> {p.sub_industry?.name || "Product"}</Badge>
                   <h3 className="font-bold text-slate-800 text-sm line-clamp-2 mb-1">{p.name}</h3>
-                  <p className="text-xs text-slate-500 mb-3">{p.vendor}</p>
+                  <p className="text-xs text-slate-500 mb-3">{p.vendor?.business_name || "Vendor"}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-base font-bold text-brand-600">{p.price}</span>
-                    <Badge variant={p.availability === "In Stock" ? "success" : "warning"}>{p.availability}</Badge>
-                  </div>
-                  <button className="w-full mt-3 py-2 text-xs font-semibold text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors">
-                    View Details
-                  </button>
+                    <span className="text-base font-bold text-brand-600">  ₹{p.sale_price || p.regular_price}</span>
+                     <Badge variant={p.stock_status === "in_stock" ? "success" : "warning"}>
+    {p.stock_status === "in_stock" ? "In Stock" : "Out of Stock"}
+  </Badge>
+  </div>
+                  <Link
+  to={`/products/${p.id}`}
+  className="block w-full mt-3 py-2 text-center text-xs font-semibold text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
+>
+  View Details
+</Link>
                 </div>
               </div>
             ))}
