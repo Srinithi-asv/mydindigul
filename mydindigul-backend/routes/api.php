@@ -20,9 +20,11 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\VendorDashboardController;
 
 // Authentication
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/vendor/register', [AuthController::class, 'vendorRegister']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/industries', [IndustryController::class, 'index']);
@@ -174,6 +176,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // User
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/vendor/dashboard', [VendorDashboardController::class, 'index']);
 
     // User Addresses
     Route::get('/addresses', [UserAddressController::class, 'index']);

@@ -40,18 +40,25 @@ export function VendorDashboard() {
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [upgradeModal, setUpgradeModal] = useState(false);
   const [vendor, setVendor] = useState<any>(null);
+const [stats, setStats] = useState<any>(null);
 
 useEffect(() => {
-  apiFetch("/user")
+  apiFetch("/vendor/dashboard")
     .then((data) => {
-      setVendor(data);
+      setVendor(data.vendor);
+      setPlan(data.plan?.type === "premium" ? "premium" : "free");
+      setStats(data.stats);
     })
     .catch((error) => {
-      console.error("Failed to load vendor:", error);
+      console.error("Failed to load vendor dashboard:", error);
     });
 }, []);
   return (
-    <DashboardLayout type="vendor" userName="Murugan Pillai" plan={plan}>
+    <DashboardLayout
+  type="vendor"
+  userName={vendor?.business_name || "Vendor"}
+  plan={plan}
+>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800">Vendor Dashboard</h1>
         <button
@@ -78,11 +85,36 @@ useEffect(() => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 my-5">
-        <StatCard label="Services" value={vendorStats.services} icon={<Package size={18} />} color="brand" />
-        <StatCard label="Products" value={vendorStats.products} icon={<ShoppingBag size={18} />} color="sky" />
-        <StatCard label="Customers" value={`${vendorStats.customers}/5`} icon={<Users size={18} />} color="emerald" />
-        <StatCard label="Leads" value={`${vendorStats.leads}/5`} icon={<TrendingUp size={18} />} color="amber" />
-        <StatCard label="Visitors" value={vendorStats.visitors} icon={<Eye size={18} />} color="violet" />
+       <StatCard
+  label="Services"
+  value={stats?.services ?? 0}
+  icon={<Package size={18} />}
+  color="brand"
+/>
+        <StatCard
+  label="Products"
+  value={stats?.products ?? 0}
+  icon={<ShoppingBag size={18} />}
+  color="sky"
+/>
+        <StatCard
+  label="Customers"
+  value={`${stats?.customers ?? 0}/5`}
+  icon={<Users size={18} />}
+  color="emerald"
+/>
+        <StatCard
+  label="Leads"
+  value={`${stats?.leads ?? 0}/5`}
+  icon={<TrendingUp size={18} />}
+  color="amber"
+/>
+        <StatCard
+  label="Visitors"
+  value={stats?.visitors ?? 0}
+  icon={<Eye size={18} />}
+  color="violet"
+/>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

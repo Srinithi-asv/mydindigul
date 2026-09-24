@@ -244,8 +244,59 @@ export function RegisterPage() {
 export function BusinessRegisterPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const totalSteps = 3;
+const [errors, setErrors] = useState<Record<string, string>>({});
+
+const [businessName, setBusinessName] = useState("");
+const [ownerName, setOwnerName] = useState("");
+const [phone, setPhone] = useState("");
+const [email, setEmail] = useState("");
+const [industryId, setIndustryId] = useState("");
+const [subIndustryId, setSubIndustryId] = useState("");
+const [address, setAddress] = useState("");
+const [city, setCity] = useState("");
+const [pincode, setPincode] = useState("");
+const [description, setDescription] = useState("");
+const [password, setPassword] = useState("");
+const [loading, setLoading] = useState(false);
+
+const totalSteps = 3;
+const handleBusinessRegister = async () => {
+  setLoading(true);
+  setErrors({});
+
+  try {
+    const data = await apiFetch("/vendor/register", {
+      method: "POST",
+      body: JSON.stringify({
+        business_name: businessName,
+        owner_name: ownerName,
+        phone: phone,
+        email: email,
+        password: password,
+        industry_id: industryId,
+        sub_industry_id: subIndustryId || null,
+        address: address,
+        city: "Dindigul",
+        pincode: "624001",
+        description: description,
+      }),
+    });
+
+    // Save the login token returned by Laravel
+    localStorage.setItem("auth_token", data.token);
+
+    // Open the vendor dashboard after successful registration
+    navigate("/vendor/dashboard");
+  } catch (error: any) {
+    console.error("Business registration failed:", error);
+
+    setErrors({
+      submit: error.message || "Business registration failed.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-brand-50 flex items-center justify-center p-4">
@@ -272,11 +323,37 @@ export function BusinessRegisterPage() {
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="font-bold text-slate-700 text-lg">Business Details</h2>
-              <Input label="Business Name" placeholder="e.g. Sri Murugan Mess" required />
-              <Input label="Owner Name" placeholder="Your full name" required />
+              <Input
+  label="Business Name"
+  placeholder="e.g. Sri Murugan Mess"
+  value={businessName}
+  onChange={setBusinessName}
+  required
+/>
+             <Input
+  label="Owner Name"
+  placeholder="Your full name"
+  value={ownerName}
+  onChange={setOwnerName}
+  required
+/>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Phone" placeholder="+91 9XXXXXXXXX" type="tel" required />
-                <Input label="Email" placeholder="business@example.com" type="email" required />
+                <Input
+  label="Phone"
+  placeholder="+91 9XXXXXXXXX"
+  type="tel"
+  value={phone}
+  onChange={setPhone}
+  required
+/>
+                <Input
+  label="Email"
+  placeholder="business@example.com"
+  type="email"
+  value={email}
+  onChange={setEmail}
+  required
+/>
               </div>
               <Button fullWidth size="lg" onClick={() => setStep(2)}>Next: Location & Industry →</Button>
             </div>
@@ -288,13 +365,13 @@ export function BusinessRegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1">Industry <span className="text-rose-500">*</span></label>
-                  <select className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200">
+                  <select
+  value={industryId}
+  onChange={(e) => setIndustryId(e.target.value)}
+  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm"
+>
                     <option value="">Select Industry</option>
-                    <option>Restaurants & Food</option>
-                    <option>Healthcare</option>
-                    <option>Automobile</option>
-                    <option>Education</option>
-                    <option>Retail</option>
+<option value="1">Information Technology</option>
                   </select>
                 </div>
                 <div>
@@ -304,10 +381,26 @@ export function BusinessRegisterPage() {
                   </select>
                 </div>
               </div>
-              <Input label="Address" placeholder="Street address" required />
+              <Input
+  label="Address"
+  placeholder="Street address"
+  value={address}
+  onChange={setAddress}
+  required
+/>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="City" placeholder="Dindigul" required />
-                <Input label="Pincode" placeholder="624001" required />
+                <Input
+  label="City"
+  value="Dindigul"
+  onChange={() => {}}
+  required
+/>
+                <Input
+  label="Pincode"
+  value="624001"
+  onChange={() => {}}
+  required
+/>
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
@@ -321,7 +414,12 @@ export function BusinessRegisterPage() {
               <h2 className="font-bold text-slate-700 text-lg">Business Profile</h2>
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-slate-700">Business Description <span className="text-rose-500">*</span></label>
-                <textarea rows={3} placeholder="Describe your business..." className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200 resize-none" />
+               <textarea
+  value={description}
+  onChange={(e) => setDescription(e.target.value)}
+  placeholder="Tell customers about your business..."
+  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm min-h-[120px]"
+/>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -338,11 +436,24 @@ export function BusinessRegisterPage() {
                 </div>
               </div>
               <div>
-                <Input label="Set Password" placeholder="Create a strong password" type="password" required />
+                <Input
+  label="Set Password"
+  placeholder="Create a strong password"
+  type="password"
+  value={password}
+  onChange={setPassword}
+  required
+/>
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setStep(2)}>← Back</Button>
-                <Button fullWidth onClick={() => navigate("/vendor/dashboard")}>Register Business 🎉</Button>
+                <Button
+  fullWidth
+  onClick={handleBusinessRegister}
+  disabled={loading}
+>
+  {loading ? "Registering..." : "Register Business 🎉"}
+</Button>
               </div>
             </div>
           )}
