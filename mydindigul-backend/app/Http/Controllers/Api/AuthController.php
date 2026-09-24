@@ -45,34 +45,36 @@ class AuthController extends Controller
      * Login an existing user.
      */
     public function login(Request $request)
-    {
-        $validated = $request->validate([
-            'phone' => 'required|string',
-            'password' => 'required|string',
-        ]);
+{
+    $validated = $request->validate([
+        'identifier' => 'required|string',
+        'password' => 'required|string',
+    ]);
 
-        $user = User::where('phone', $validated['phone'])->first();
+    $user = User::where('phone', $validated['identifier'])
+        ->orWhere('email', $validated['identifier'])
+        ->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'phone' => ['The provided credentials are incorrect.'],
-            ]);
-        }
-
-        if ($user->status !== 'active') {
-            return response()->json([
-                'message' => 'Your account is not active.',
-            ], 403);
-        }
-
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => $user,
-            'token' => $token,
+    if (!$user || !Hash::check($validated['password'], $user->password)) {
+        throw ValidationException::withMessages([
+            'identifier' => ['The provided credentials are incorrect.'],
         ]);
     }
+
+    if ($user->status !== 'active') {
+        return response()->json([
+            'message' => 'Your account is not active.',
+        ], 403);
+    }
+
+    $token = $user->createToken('api-token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Login successful',
+        'user' => $user,
+        'token' => $token,
+    ]);
+}
 
     /**
      * Get the currently authenticated user.

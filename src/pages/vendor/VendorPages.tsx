@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../../api";
 import { Link } from "react-router";
 import {
   Crown, Package, Users, TrendingUp, ShoppingBag, Calendar, Tag, Briefcase, Eye, Edit2, Trash2, Plus, Download, Phone, Mail, Lock
@@ -38,7 +39,17 @@ function VLayout({ children, title, breadcrumbs, plan = "free" }: { children: Re
 export function VendorDashboard() {
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [upgradeModal, setUpgradeModal] = useState(false);
+  const [vendor, setVendor] = useState<any>(null);
 
+useEffect(() => {
+  apiFetch("/user")
+    .then((data) => {
+      setVendor(data);
+    })
+    .catch((error) => {
+      console.error("Failed to load vendor:", error);
+    });
+}, []);
   return (
     <DashboardLayout type="vendor" userName="Murugan Pillai" plan={plan}>
       <div className="mb-5 flex items-center justify-between">
@@ -181,7 +192,13 @@ export function VendorCompanyInfo() {
 
   return (
     <VLayout title="Company Information" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Company Info" }]}>
-      {saved && <Alert type="success" message="Company information updated successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="Company information updated successfully!"
+    onClose={() => setSaved(false)}
+  />
+</div>}
       <div className="max-w-2xl">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -212,10 +229,14 @@ export function VendorCompanyInfo() {
             </div>
             <Input label="Address" value="42, Palani Road, Chinnalapatti, Dindigul - 624001" disabled={!editing} />
             <div className="grid grid-cols-2 gap-4">
-              <Select label="Industry" options={[{ value: "food", label: "Restaurants & Food" }]} value="food" disabled={!editing} />
-              <Select label="Sub-Industry" options={[{ value: "catering", label: "Catering" }]} value="catering" disabled={!editing} />
+             <Select
+  label="Sub-Industry"
+  options={[{ value: "catering", label: "Catering" }]}
+  value="catering"
+/>
+              <Select label="Sub-Industry" options={[{ value: "catering", label: "Catering" }]} value="catering" />
             </div>
-            <Textarea label="Description" value="Authentic Chettinad cuisine served fresh daily. Famous for mutton biryani and filter coffee." disabled={!editing} />
+           <Textarea label="Description" value="Authentic Chettinad cuisine served fresh daily. Famous for mutton biryani and filter coffee." />
           </div>
 
           {editing && (
@@ -247,7 +268,9 @@ export function VendorLeads() {
         <StatCard label="Closed" value="1" icon={<TrendingUp size={16} />} color="rose" />
       </div>
 
-      {plan === "free" && <UsageCounter used={5} max={5} label="Leads (Free Plan)" className="mb-5" />}
+      {plan === "free" && <div className="mb-5">
+  <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" />
+</div>}
 
       <div className="flex items-center justify-between mb-4">
         <Tabs tabs={["New Leads", "All Leads"]} active={activeTab} onChange={setActiveTab} />
@@ -358,7 +381,15 @@ export function VendorCustomers() {
 
   return (
     <VLayout title="Customers" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Customers" }]}>
-      {plan === "free" && <UsageCounter used={5} max={5} label="Customers (Free Plan)" className="mb-5" />}
+      {plan === "free" && (
+  <div className="mb-5">
+    <UsageCounter
+      used={vendorStats.customers}
+      max={5}
+      label="Customers (Free Plan)"
+    />
+  </div>
+)}
 
       <div className="flex items-center justify-between mb-4">
         <SearchBar placeholder="Search customers..." className="w-64" />
@@ -440,7 +471,7 @@ export function VendorServices() {
           <Card key={s.id} className="overflow-hidden">
             <div className="relative h-36">
               <img src={s.image} alt={s.name} className="w-full h-full object-cover" />
-              <StatusBadge status={s.status} className="absolute top-3 right-3" />
+              <StatusBadge status={s.status}/>
             </div>
             <div className="p-4">
               <h3 className="font-bold text-slate-700">{s.name}</h3>
@@ -595,7 +626,9 @@ export function VendorJobs() {
 
   return (
     <VLayout title="Jobs" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Jobs" }]}>
-      {plan === "free" && <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" className="mb-5" />}
+      {plan === "free" && <div className="mb-5">
+  <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" />
+</div>}
 
       <div className="flex items-center justify-between mb-5">
         <div />
@@ -661,7 +694,15 @@ export function VendorEvents() {
 
   return (
     <VLayout title="Events" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Events" }]}>
-      {plan === "free" && <UsageCounter used={1} max={1} label="Events (Free Plan)" className="mb-5" />}
+     {plan === "free" && (
+  <div className="mb-5">
+    <UsageCounter
+      used={vendorStats.leads}
+      max={5}
+      label="Leads (Free Plan)"
+    />
+  </div>
+)}
 
       <div className="flex justify-end mb-5">
         <Button size="sm" onClick={() => setShowAdd(true)} locked={plan === "free" && events.length >= 1}>
@@ -734,7 +775,13 @@ export function VendorSettings() {
 
   return (
     <VLayout title="Settings" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Settings" }]}>
-      {saved && <Alert type="success" message="Settings saved successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="Settings saved successfully!"
+    onClose={() => setSaved(false)}
+    />
+  </div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Account Settings */}
@@ -797,7 +844,13 @@ export function VendorCMS() {
 
   return (
     <VLayout title="CMS" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "CMS" }]}>
-      {saved && <Alert type="success" message="Content saved successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="..."
+    onClose={() => setSaved(false)}
+  />
+</div>}
 
       <Tabs tabs={["About Us", "Terms & Policies"]} active={activeTab} onChange={setActiveTab} />
 

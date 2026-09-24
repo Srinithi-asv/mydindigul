@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "../../api";
 import { Link, useNavigate } from "react-router";
 import { Building2, Eye, EyeOff, ArrowLeft, Phone, Mail, CheckCircle } from "lucide-react";
 import { Input, Button, Alert } from "../../components/ui";
@@ -35,21 +36,51 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [remember, setRemember] = useState(false);
 
-  const handleLogin = () => {
-    if (!email || !password) { setError("Please fill in all fields."); return; }
-    setLoading(true);
-    setError("");
-    setTimeout(() => {
-      setLoading(false);
-      if (email.includes("vendor")) navigate("/vendor/dashboard");
-      else if (email.includes("admin")) navigate("/admin/dashboard");
-      else navigate("/user/dashboard");
-    }, 1200);
-  };
+  const handleLogin = async () => {
+  if (!email || !password) {
+    setError("Please fill in all fields.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+
+  try {
+    const data = await apiFetch("/login", {
+      method: "POST",
+      body: JSON.stringify({
+  identifier: email,
+  password,
+}),
+    });
+
+    localStorage.setItem("auth_token", data.token);
+
+    if (data.user?.role === "vendor") {
+      navigate("/vendor/dashboard");
+    } else if (data.user?.role === "admin") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/user/dashboard");
+    }
+  } catch (error: any) {
+    setError(error.message || "Login failed.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <AuthCard title="Welcome Back" subtitle="Login to your MyDindigul account">
-      {error && <Alert type="error" message={error} onClose={() => setError("")} className="mb-4" />}
+      {error && (
+  <div className="mb-4">
+    <Alert
+      type="error"
+      message={error}
+      onClose={() => setError("")}
+    />
+  </div>
+)}
 
       <div className="space-y-4">
         <Input label="Email or Phone" placeholder="you@example.com" value={email} onChange={setEmail} type="email" required />
