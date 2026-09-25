@@ -718,9 +718,38 @@ export function JobDetailPage() {
 
 // ─── TOURISM DETAIL PAGE ──────────────────────────────────────────────────────
 export function TourismDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const place = tourismPlaces.find((p) => p.id === Number(id));
-  const [activeImg, setActiveImg] = useState(0);
+ const { id } = useParams<{ id: string }>();
+const [place, setPlace] = useState<any>(null);
+const [relatedPlaces, setRelatedPlaces] = useState<any[]>([]);
+const [activeImg, setActiveImg] = useState(0);
+
+useEffect(() => {
+  if (!id) return;
+
+  apiFetch(`/tourism/${id}`)
+    .then((data) => {
+      setPlace(data.tourism_place || data.data || data);
+    })
+    .catch((error) => {
+      console.error("Failed to load tourism place:", error);
+      setPlace(null);
+    });
+
+    apiFetch("/tourism")
+  .then((data) => {
+    const places = data.tourism_places || data.data || [];
+
+    setRelatedPlaces(
+      places
+        .filter((p: any) => Number(p.id) !== Number(id))
+        .slice(0, 3)
+    );
+  })
+  .catch((error) => {
+    console.error("Failed to load related tourism places:", error);
+  });
+
+}, [id]);
 
   if (!place) {
     return (
@@ -736,8 +765,11 @@ export function TourismDetailPage() {
     );
   }
 
-  const relatedPlaces = tourismPlaces.filter((p) => p.id !== place.id).slice(0, 3);
-  const gallery = (place as any).gallery || [place.image];
+  
+
+  const gallery = place.cover_image_url
+  ? [place.cover_image_url]
+  : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -748,9 +780,9 @@ export function TourismDetailPage() {
         <img src={gallery[activeImg]} alt={place.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 to-slate-900/10" />
         <div className="absolute bottom-6 left-6 right-6">
-          <Badge variant="info" className="mb-2">{place.category}</Badge>
+          <Badge variant="info" className="mb-2">{place.tourism_category?.name || "Tourism"}</Badge>
           <h1 className="text-3xl font-bold text-white">{place.name}</h1>
-          <div className="flex items-center gap-1 mt-1 text-white/80 text-sm"><MapPin size={14} />{place.location}</div>
+          <div className="flex items-center gap-1 mt-1 text-white/80 text-sm"><MapPin size={14} />{place.location_address}</div>
         </div>
         <Link to="/tourism" className="absolute top-4 left-4 flex items-center gap-1 text-white/90 hover:text-white text-sm bg-black/30 px-3 py-1.5 rounded-lg backdrop-blur-sm transition-colors">
           <ArrowLeft size={14} /> Back
@@ -774,17 +806,22 @@ export function TourismDetailPage() {
             {/* Description */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h2 className="font-bold text-slate-800 text-lg mb-3">About {place.name}</h2>
-              <p className="text-slate-600 leading-relaxed mb-3">{place.description}</p>
-              {(place as any).longDescription && (
-                <p className="text-slate-600 leading-relaxed text-sm">{(place as any).longDescription}</p>
-              )}
+             <p className="text-slate-600 leading-relaxed whitespace-pre-line">
+  {place.history_overview || "Information unavailable"}
+</p>
             </div>
 
             {/* Highlights */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h3 className="font-bold text-slate-800 mb-3">Highlights</h3>
               <div className="flex flex-wrap gap-2">
-                {place.highlights.map((h) => (
+                {(
+  place.highlights || [
+    place.tourism_category?.name,
+    "Tourist Attraction",
+    "Dindigul Destination"
+  ]
+).map((h: string) => (
                   <span key={h} className="px-3 py-1.5 bg-brand-50 text-brand-600 rounded-full text-sm font-medium">✓ {h}</span>
                 ))}
               </div>
@@ -798,10 +835,10 @@ export function TourismDetailPage() {
                   {relatedPlaces.map((p) => (
                     <Link key={p.id} to={`/tourism/${p.id}`} className="group block">
                       <div className="h-32 rounded-xl overflow-hidden mb-2">
-                        <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img src={p.cover_image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       </div>
                       <p className="font-semibold text-sm text-slate-700">{p.name}</p>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={10} />{p.location}</p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={10} />{p.location_address}</p>
                     </Link>
                   ))}
                 </div>
@@ -816,22 +853,55 @@ export function TourismDetailPage() {
               <div className="space-y-3 text-sm">
                 <div>
                   <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Entry Fee</p>
-                  <p className="font-semibold text-slate-700">{(place as any).entryFee || "Contact for details"}</p>
+                  <p className="font-semibold text-slate-700">{place.entryFee || "Contact for details"}</p>
                 </div>
                 <div>
                   <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Best Time to Visit</p>
-                  <p className="font-semibold text-slate-700">{(place as any).bestTime || "All year"}</p>
+                  <p className="font-semibold text-slate-700">{place.best_time_to_visit || "All year"}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">How to Reach</p>
-                  <p className="text-slate-600">{(place as any).howToReach || "Accessible from Dindigul"}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} size={14} fill={i < Math.floor(place.rating) ? "#f97316" : "none"} className={i < Math.floor(place.rating) ? "text-brand-500" : "text-slate-300"} />
-                  ))}
-                  <span className="text-sm font-bold text-slate-700 ml-1">{place.rating}/5</span>
-                </div>
+  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">
+    Location
+  </p>
+
+  <p className="text-slate-600 mb-2">
+    {place.location_address || "Location information unavailable"}
+  </p>
+
+  {place.latitude && place.longitude && (
+    <a
+      href={`https://www.google.com/maps?q=${place.latitude},${place.longitude}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 text-brand-600 hover:underline text-sm font-medium"
+    >
+      <MapPin size={14} />
+      View on Google Maps
+    </a>
+  )}
+</div>
+               <div className="flex items-center gap-1">
+  {[...Array(5)].map((_, i) => (
+    <Star
+      key={i}
+      size={14}
+      fill={
+        i < Math.floor(place.rating || 4)
+          ? "#f97316"
+          : "none"
+      }
+      className={
+        i < Math.floor(place.rating || 4)
+          ? "text-brand-500"
+          : "text-slate-300"
+      }
+    />
+  ))}
+
+  <span className="text-sm font-bold text-slate-700 ml-1">
+    {place.rating || 4}/5
+  </span>
+</div>
               </div>
             </div>
 

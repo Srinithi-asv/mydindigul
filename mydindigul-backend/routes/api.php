@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderItemController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\TourismController;
 
 // Authentication
 Route::post('/register', [AuthController::class, 'register']);
@@ -46,6 +47,12 @@ Route::get('/vendors/{id}', [VendorController::class, 'show']);
 Route::post('/vendors', [VendorController::class, 'store']);
 Route::put('/vendors/{id}', [VendorController::class, 'update']);
 Route::delete('/vendors/{id}', [VendorController::class, 'destroy']);
+
+
+// Tourism - Public routes
+Route::get('/tourism', [TourismController::class, 'index']);
+Route::get('/tourism/{id}', [TourismController::class, 'show']);
+
 
 // Services - Public routes
 Route::get('/services', [ServiceController::class, 'index']);
@@ -114,6 +121,8 @@ Route::get('/vendor-customers/{id}', [VendorCustomerController::class, 'show']);
 Route::post('/vendor-customers', [VendorCustomerController::class, 'store']);
 Route::put('/vendor-customers/{id}', [VendorCustomerController::class, 'update']);
 Route::delete('/vendor-customers/{id}', [VendorCustomerController::class, 'destroy']);
+
+
 
 
 // Leads - Public routes

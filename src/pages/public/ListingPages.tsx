@@ -1,12 +1,47 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Search, Filter, MapPin, Heart, Star, Briefcase, Calendar, Clock, ChevronDown, Building2, Package } from "lucide-react";
+import {
+  Search,
+  Filter,
+  MapPin,
+  Heart,
+  Star,
+  Briefcase,
+  Calendar,
+  Clock,
+  ChevronDown,
+  Building2,
+  Package,
+  Laptop,
+  Utensils,
+  Factory,
+  HeartPulse,
+  ShoppingBag,
+  Wrench,
+  Plane,
+  Car,
+  GraduationCap,
+  Sparkles,
+} from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
 import { services, products, jobs, tourismPlaces, businesses } from "../../data/mockData";
 import { apiFetch } from "../../api";
 import { Badge, SearchBar, Select, StatusBadge, Pagination, SkeletonCard, EmptyState, Button } from "../../components/ui";
 
+const categoryIcons: Record<string, any> = {
+  "Information Technology": Laptop,
+  "Food & Restaurants": Utensils,
+  "Manufacturing & Industrial": Factory,
+  "Healthcare & Medical": HeartPulse,
+  "Retail & Shopping": ShoppingBag,
+  "Home & Maintenance Services": Wrench,
+  "Travel & Tourism": Plane,
+  "Automotive & Vehicles": Car,
+  "Education & Training": GraduationCap,
+  "IT & Software": Laptop,
+  "Beauty & Wellness": Sparkles,
+};
 
 export function EventsPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -318,6 +353,62 @@ const [ticketsCount, setTicketsCount] = useState(1);
 
       <PublicFooter />
     </div>
+  );
+}
+
+
+//categoryPage
+export function CategoriesPage() {
+  const [industries, setIndustries] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiFetch("/industries")
+      .then((data) => {
+        setIndustries(data.industries || []);
+      })
+      .catch((error) => {
+        console.error("Failed to load industries:", error);
+      });
+  }, []);
+
+  return (
+    <>
+      <PublicHeader />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+        <h1 className="text-2xl font-bold text-slate-800">
+          All Categories
+        </h1>
+
+        <p className="text-sm text-slate-500 mt-1 mb-6">
+          Explore all business categories
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+          {industries.map((ind) => {
+            const Icon = categoryIcons[ind.name] || Building2;
+
+            return (
+              <Link
+                key={ind.id}
+                to={`/services?industry=${ind.name}`}
+                className="flex flex-col items-center gap-3 p-6 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group"
+              >
+                <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors">
+                  <Icon size={24} />
+                </div>
+
+                <span className="text-sm font-medium text-slate-700 leading-tight">
+                  {ind.name}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </main>
+
+      <PublicFooter />
+    </>
   );
 }
 
@@ -645,12 +736,50 @@ export function JobsPage() {
   const [applyModal, setApplyModal] = useState(false);
   const [applyStep, setApplyStep] = useState(1);
 
-  const filtered = jobs.filter((j) =>
-    (!q || j.title.toLowerCase().includes(q.toLowerCase()) || j.company.toLowerCase().includes(q.toLowerCase())) &&
-    (!type || j.type === type)
+  const [apiJobs, setApiJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+  apiFetch("/job-postings")
+    .then((data) => {
+      const allJobs = data.job_postings || data.data || [];
+      setApiJobs(allJobs);
+    })
+    .catch((error) => {
+      console.error("Failed to load jobs:", error);
+    });
+}, []);
+
+ const filtered = apiJobs
+  .map((j) => ({
+    ...j,
+    company: j.vendor?.business_name || "Company",
+    type: j.job_type === "full_time" ? "Full-time" : j.job_type,
+    salary: `₹${Number(j.salary_min).toLocaleString()} - ₹${Number(j.salary_max).toLocaleString()}`,
+    postedDate: new Date(j.created_at).toLocaleDateString(),
+    requirements: j.skills_required || [],
+  }))
+  .filter(
+    (j) =>
+      (!q ||
+        j.title.toLowerCase().includes(q.toLowerCase()) ||
+        j.company.toLowerCase().includes(q.toLowerCase())) &&
+      (!type || j.type === type)
   );
 
-  const selectedJob = jobs.find((j) => j.id === selected) || jobs[0];
+  const selectedJob =
+  filtered.find((j) => j.id === selected) || filtered[0];
+
+  if (!selectedJob) {
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <PublicHeader />
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+        <p className="text-slate-500">No jobs available.</p>
+      </div>
+      <PublicFooter />
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -725,7 +854,7 @@ export function JobsPage() {
                 <div>
                   <h4 className="font-semibold text-slate-700 text-sm mb-2">Requirements</h4>
                   <ul className="space-y-1">
-                    {selectedJob.requirements.map((r, i) => (
+                    {selectedJob.requirements.map((r: string, i: number) => (
                       <li key={i} className="text-sm text-slate-600 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 bg-brand-500 rounded-full shrink-0" />{r}
                       </li>
@@ -807,10 +936,24 @@ export function JobsPage() {
 // ─── TOURISM PAGE ─────────────────────────────────────────────────────────────
 export function TourismPage() {
   const [q, setQ] = useState("");
+   const [apiPlaces, setApiPlaces] = useState<any[]>([]);
 
-  const filtered = tourismPlaces.filter((p) =>
-    !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.location.toLowerCase().includes(q.toLowerCase())
-  );
+   useEffect(() => {
+  apiFetch("/tourism")
+    .then((data) => {
+      const places = data.tourism_places || data.data || [];
+      setApiPlaces(places);
+    })
+    .catch((error) => {
+      console.error("Failed to load tourism places:", error);
+    });
+}, []);
+
+ const filtered = apiPlaces.filter((p) =>
+  !q ||
+  p.name.toLowerCase().includes(q.toLowerCase()) ||
+  (p.location || "").toLowerCase().includes(q.toLowerCase())
+);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -841,16 +984,16 @@ export function TourismPage() {
           {filtered.map((place) => (
             <Link key={place.id} to={`/tourism/${place.id}`} className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <div className="relative h-52">
-                <img src={place.image} alt={place.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <img src={place.cover_image_url} alt={place.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <Badge variant="info" className="absolute top-3 left-3">{place.category}</Badge>
               </div>
               <div className="p-4">
                 <h3 className="font-bold text-slate-800 mb-1">{place.name}</h3>
-                <div className="flex items-center gap-1 text-xs text-slate-500 mb-2"><MapPin size={11} />{place.location}</div>
+                <div className="flex items-center gap-1 text-xs text-slate-500 mb-2"><MapPin size={11} />{place.location_address}</div>
                 <p className="text-xs text-slate-500 line-clamp-2">{place.description}</p>
                 <div className="flex flex-wrap gap-1.5 mt-3">
-                  {place.highlights.slice(0, 3).map((h) => (
+                  {(place.highlights || []).slice(0, 3).map((h:string) => (
                     <span key={h} className="text-xs bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full font-medium">{h}</span>
                   ))}
                 </div>
@@ -867,12 +1010,46 @@ export function TourismPage() {
 // ─── VENDOR STOREFRONT ────────────────────────────────────────────────────────
 export function VendorStorefront() {
   const vendor = businesses[0];
-  const [activeTab, setActiveTab] = useState("about");
+ const [vendorServices, setVendorServices] = useState<any[]>([]);
+  const [vendorProducts, setVendorProducts] = useState<any[]>([]);
+   const [activeTab, setActiveTab] = useState("about");
   const [enquiryModal, setEnquiryModal] = useState(false);
   const [enquirySubmitted, setEnquirySubmitted] = useState(false);
   const [wishlist, setWishlist] = useState(false);
 
   const tabs = ["about", "services", "products", "jobs", "offers"];
+   
+
+  useEffect(() => {
+  apiFetch("/services")
+    .then((data) => {
+      const allServices = data.services || data.data || [];
+
+      setVendorServices(
+        allServices.filter(
+          (service: any) => service.vendor_id === vendor.id
+        )
+      );
+    })
+    .catch((error) => {
+      console.error("Failed to load services:", error);
+    });
+
+  apiFetch("/products")
+    .then((data) => {
+      const allProducts = data.products || data.data || [];
+
+      setVendorProducts(
+        allProducts.filter(
+          (product: any) => product.vendor_id === vendor.id
+        )
+      );
+    })
+    .catch((error) => {
+      console.error("Failed to load products:", error);
+    });
+}, [vendor.id]);  
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -965,11 +1142,19 @@ export function VendorStorefront() {
             <div>
               <h2 className="font-bold text-slate-800 text-lg mb-4">Services Offered</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {services.filter((s) => s.vendorId === vendor.id).map((s) => (
+                {vendorServices.map((s)=> (
                   <div key={s.id} className="flex gap-3 p-4 bg-slate-50 rounded-xl">
-                    <img src={s.image} alt={s.title} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+                  <img
+  src={
+    s.banner_image_url ||
+    s.images?.[0] ||
+    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=300"
+  }
+  alt={s.title}
+  className="w-16 h-16 rounded-lg object-cover shrink-0"
+/>
                     <div>
-                      <h3 className="font-semibold text-slate-700 text-sm">{s.title}</h3>
+                      <h3 className="font-semibold text-slate-700 text-sm">{s.name || s.title}</h3>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
                       <p className="text-sm font-bold text-brand-600 mt-1">{s.price}</p>
                     </div>
@@ -982,11 +1167,19 @@ export function VendorStorefront() {
             <div>
               <h2 className="font-bold text-slate-800 text-lg mb-4">Products</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {products.filter((p) => p.vendorId === vendor.id).map((p) => (
+               {vendorProducts.map((p) => (
                   <div key={p.id} className="p-3 bg-slate-50 rounded-xl">
-                    <img src={p.image} alt={p.name} className="w-full h-28 rounded-lg object-cover mb-2" />
+                    <img
+  src={
+    p.thumbnail_url ||
+    p.gallery_urls?.[0] ||
+    "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400"
+  }
+  alt={p.name}
+  className="w-full h-28 rounded-lg object-cover mb-2"
+/>
                     <h3 className="font-semibold text-slate-700 text-xs line-clamp-2 mb-1">{p.name}</h3>
-                    <p className="text-sm font-bold text-brand-600">{p.price}</p>
+                    <p className="text-sm font-bold text-brand-600">{p.sale_price || p.regular_price}</p>
                   </div>
                 ))}
               </div>

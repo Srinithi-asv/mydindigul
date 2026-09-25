@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router";
 import { Search, MapPin, Star, Heart, ArrowRight, Building2, Briefcase, Package, Globe, Utensils, Car, GraduationCap, Wrench, Hotel, ChevronRight } from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
-import { businesses, jobs, tourismPlaces } from "../../data/mockData";
 import { apiFetch } from "../../api";
 import { Badge, Button } from "../../components/ui";
 
@@ -15,11 +14,14 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([]);
   const [jobPostings, setJobPostings] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
-
+const [vendors, setVendors] = useState<any[]>([]);
+const [tourismPlaces, setTourismPlaces] = useState<any[]>([]);
+const [wishlist, setWishlist] = useState<Record<number, number>>({});
   useEffect(() => {
 
     apiFetch("/industries")
       .then((data) => {
+        console.log("Industries API response:", data);
         setIndustries(data.industries || []);
       })
       .catch((error) => {
@@ -68,15 +70,118 @@ useEffect(() => {
     });
 }, []);
 
+useEffect(() => {
+  apiFetch("/tourism")
+    .then((data) => {
+      setTourismPlaces(data.tourism_places || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load tourism places:", error);
+    });
+}, []);
+
+useEffect(() => {
+  apiFetch("/vendors")
+    .then((data) => {
+      setVendors(data.vendors || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load vendors:", error);
+    });
+}, []);
+
+useEffect(() => {
+  const token = localStorage.getItem("auth_token");
+
+  if (!token) {
+    return;
+  }
+
+  apiFetch("/user")
+    .then((userData) => {
+      const userId = userData.user?.id;
+
+      if (!userId) {
+        return;
+      }
+
+      return apiFetch(`/wishlists/user/${userId}`);
+    })
+    .then((data) => {
+      if (!data) return;
+
+      const wishlistMap: Record<number, number> = {};
+
+      (data.wishlists || []).forEach((item: any) => {
+        if (item.wishlistable_type === "App\\Models\\Vendor") {
+          wishlistMap[item.wishlistable_id] = item.id;
+        }
+      });
+
+      setWishlist(wishlistMap);
+    })
+    .catch((error) => {
+      console.error("Failed to load wishlist:", error);
+    });
+}, []);
+
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
+  const toggleWishlist = async (vendorId: number) => {
+  const token = localStorage.getItem("auth_token");
+
+  if (!token) {
+    navigate("/login");
+    return;
+  }
+
+  try {
+    const wishlistId = wishlist[vendorId];
+
+    // Remove from wishlist
+    if (wishlistId) {
+      await apiFetch(`/wishlists/${wishlistId}`, {
+        method: "DELETE",
+      });
+
+      setWishlist((prev) => {
+        const updated = { ...prev };
+        delete updated[vendorId];
+        return updated;
+      });
+
+      return;
+    }
+
+    // Get logged-in user
+    const userData = await apiFetch("/user");
+    const userId = userData.user?.id;
+
+    if (!userId) {
+      console.error("User ID not found");
+      return;
+    }
+
+    // Add to wishlist
+    const response = await apiFetch("/wishlists", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: userId,
+        wishlistable_type: "App\\Models\\Vendor",
+        wishlistable_id: vendorId,
+      }),
+    });
+
+    setWishlist((prev) => ({
+      ...prev,
+      [vendorId]: response.wishlist.id,
+    }));
+  } catch (error) {
+    console.error("Wishlist operation failed:", error);
+  }
+};
 
   const categoryIcons: Record<string, any> = {
     "Restaurants & Food": Utensils,
@@ -148,27 +253,42 @@ useEffect(() => {
       </section>
 
       {/* Category shortcuts */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-800">Browse by Category</h2>
-          <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
-        </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-          {industries.slice(0, 12).map((ind) => {
-            const Icon = categoryIcons[ind.name] || Building2;
-            return (
-              <Link key={ind.id} to={`/services?industry=${ind.name}`}
-                className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group">
-                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors text-xl">
-                  {ind.icon}
-                </div>
-                <span className="text-xs font-medium text-slate-600 leading-tight">{ind.name.split(" ")[0]}</span>
-                <span className="text-xs text-slate-400">{ind.count}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      {/* Category shortcuts */}
+<section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="text-xl font-bold text-slate-800">
+      Browse by Category
+    </h2>
+
+    <Link to="/categories" className="text-sm text-brand-600 hover:underline flex items-center gap-1">
+  View all <ChevronRight size={14} />
+</Link>
+  </div>
+
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    {industries.slice(0, 4).map((ind) => {
+      const Icon = categoryIcons[ind.name] || Building2;
+
+      return (
+        <Link
+          key={ind.id}
+          to={`/services?industry=${ind.name}`}
+          className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group"
+        >
+          <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors text-xl">
+            <Icon size={22} />
+          </div>
+
+          <span className="text-xs font-medium text-slate-600 leading-tight">
+            {ind.name}
+          </span>
+
+          
+        </Link>
+      );
+    })}
+  </div>
+</section>
 
       {/* Featured Businesses */}
       <section className="bg-slate-50 py-12">
@@ -181,37 +301,49 @@ useEffect(() => {
             <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">See all <ChevronRight size={14} /></Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {businesses.slice(0, 6).map((b) => (
+            {vendors.slice(0, 6).map((b) => (
               <div key={b.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group">
                 <div className="relative h-44 overflow-hidden">
-                  <img src={b.image} alt={b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                 <img
+  src={b.cover_url || b.logo_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"}
+  alt={b.business_name}
+  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+/>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   <button
                     onClick={() => toggleWishlist(b.id)}
                     className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
                   >
-                    <Heart size={15} fill={wishlist.includes(b.id) ? "#f97316" : "none"} className={wishlist.includes(b.id) ? "text-brand-500" : "text-slate-500"} />
+                    <Heart
+  size={15}
+  fill={wishlist[b.id] ? "#f97316" : "none"}
+  className={wishlist[b.id] ? "text-brand-500" : "text-slate-500"}
+/>
                   </button>
-                  {b.plan === "premium" && (
+                  {b.plan_type === "premium" && (
                     <Badge variant="premium" className="absolute top-3 left-3">⭐ Premium</Badge>
                   )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <img src={b.logo} alt={b.name} className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0" />
+                    <img
+  src={b.logo_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"}
+  alt={b.business_name}
+  className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+/>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-slate-800 text-sm truncate">{b.name}</h3>
-                      <p className="text-xs text-brand-600 font-medium">{b.category}</p>
+                      <p className="text-xs text-brand-600 font-medium">{b.industry?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                    <MapPin size={11} />{b.location}
+                    <MapPin size={11} />{b.city}
                   </div>
                   <div className="flex items-center gap-1 mt-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={11} fill={i < Math.floor(b.rating) ? "#f97316" : "none"} className={i < Math.floor(b.rating) ? "text-brand-500" : "text-slate-300"} />
+                      <Star key={i} size={11} fill={i < Math.floor(Number(b.avg_rating)) ? "#f97316" : "none"} className={i < Math.floor(b.rating) ? "text-brand-500" : "text-slate-300"} />
                     ))}
-                    <span className="text-xs text-slate-500 ml-1">{b.rating} ({b.reviewCount})</span>
+                    <span className="text-xs text-slate-500 ml-1">{b.abg_rating} ({b.review_count})</span>
                   </div>
                   <Link to={`/vendor/${b.slug}`} className="mt-3 block text-center text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 py-2 rounded-lg transition-colors">
                     View Profile →
@@ -392,11 +524,11 @@ useEffect(() => {
           {tourismPlaces.map((place) => (
             <Link key={place.id} to={`/tourism/${place.id}`} className="group relative rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
               <div className="aspect-[3/4] relative">
-                <img src={place.image} alt={place.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={place.cover_image_url} alt={place.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <h3 className="text-white font-bold text-sm leading-tight">{place.name}</h3>
-                  <p className="text-white/70 text-xs mt-0.5">{place.location}</p>
+                  <p className="text-white/70 text-xs mt-0.5">{place.tourism_category?.name}</p>
                   <Badge variant="info" className="mt-1.5">{place.category}</Badge>
                 </div>
               </div>

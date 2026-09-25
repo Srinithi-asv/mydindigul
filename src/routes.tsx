@@ -2,8 +2,8 @@ import { createBrowserRouter } from "react-router";
 
 // Public pages
 import HomePage from "./pages/public/HomePage";
-import { ServicesPage, ProductsPage, JobsPage, EventsPage,EventDetailPage, TourismPage, VendorStorefront } from "./pages/public/ListingPages";
-import { ProductDetailPage, ServiceDetailPage } from "./pages/public/DetailPages";
+import { ServicesPage, ProductsPage, JobsPage, EventsPage,EventDetailPage, TourismPage, CategoriesPage, VendorStorefront } from "./pages/public/ListingPages";
+import { ProductDetailPage, ServiceDetailPage,TourismDetailPage } from "./pages/public/DetailPages";
 
 // Auth pages
 import { LoginPage, RegisterPage, BusinessRegisterPage, ForgotPasswordPage } from "./pages/auth/AuthPages";
@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
   // Public routes
   { path: "/", Component: HomePage },
   { path: "/services", Component: ServicesPage },
+  { path: "/categories", Component: CategoriesPage },
   { path: "/services/:id", Component: ServiceDetailPage },
   { path: "/products", Component: ProductsPage },
   { path: "/products/:id", Component: ProductDetailPage },
@@ -45,7 +46,7 @@ export const router = createBrowserRouter([
   { path: "/events", Component: EventsPage },
 { path: "/events/:id", Component: EventDetailPage },
   { path: "/tourism", Component: TourismPage },
-  { path: "/tourism/:id", Component: TourismPage },
+  { path: "/tourism/:id", Component: TourismDetailPage },
   { path: "/vendor/:slug", Component: VendorStorefront },
 
   // Auth routes
