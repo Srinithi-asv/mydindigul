@@ -41,6 +41,9 @@ export function VendorDashboard() {
   const [upgradeModal, setUpgradeModal] = useState(false);
   const [vendor, setVendor] = useState<any>(null);
 const [stats, setStats] = useState<any>(null);
+const [recentLeads, setRecentLeads] = useState<any[]>([]);
+const [recentOrders, setRecentOrders] = useState<any[]>([]);
+const [limits, setLimits] = useState<any>(null);
 
 useEffect(() => {
   apiFetch("/vendor/dashboard")
@@ -48,6 +51,9 @@ useEffect(() => {
       setVendor(data.vendor);
       setPlan(data.plan?.type === "premium" ? "premium" : "free");
       setStats(data.stats);
+      setRecentLeads(data.recent_leads || []);
+      setRecentOrders(data.recent_orders || []);
+      setLimits(data.limits || null);
     })
     .catch((error) => {
       console.error("Failed to load vendor dashboard:", error);
@@ -139,7 +145,7 @@ useEffect(() => {
             <Link to="/vendor/leads" className="text-xs text-brand-600 hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
-            {vendorLeads.slice(0, 4).map((l) => (
+            {recentLeads.slice(0, 4).map((l) => (
               <div key={l.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
                 <Avatar name={l.name} size="sm" />
                 <div className="flex-1 min-w-0">
@@ -159,7 +165,7 @@ useEffect(() => {
             <Link to="/vendor/orders" className="text-xs text-brand-600 hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
-            {vendorOrders.slice(0, 4).map((o) => (
+            {recentOrders.slice(0, 4).map((o) => (
               <div key={o.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
                 <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
                   <ShoppingBag size={15} className="text-emerald-500" />
@@ -179,10 +185,26 @@ useEffect(() => {
           <Card className="p-5">
             <h3 className="font-bold text-slate-700 mb-4">Free Plan Usage</h3>
             <div className="space-y-3">
-              <UsageCounter used={5} max={5} label="Customers" />
-              <UsageCounter used={5} max={5} label="Leads" />
-              <UsageCounter used={1} max={1} label="Job Postings" />
-              <UsageCounter used={1} max={1} label="Events" />
+              <UsageCounter
+  used={limits?.customers?.used ?? 0}
+  max={limits?.customers?.max ?? 0}
+  label="Customers"
+/>
+              <UsageCounter
+  used={limits?.leads?.used ?? 0}
+  max={limits?.leads?.max ?? 0}
+  label="Leads"
+/>
+              <UsageCounter
+  used={limits?.active_jobs?.used ?? 0}
+  max={limits?.active_jobs?.max ?? 0}
+  label="Job Postings"
+/>
+              <UsageCounter
+  used={limits?.events?.used ?? 0}
+  max={limits?.events?.max ?? 0}
+  label="Events"
+/>
             </div>
             <button onClick={() => setUpgradeModal(true)} className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
               <Crown size={14} /> Upgrade to Premium
@@ -287,21 +309,69 @@ export function VendorCompanyInfo() {
 export function VendorLeads() {
   const [activeTab, setActiveTab] = useState("All Leads");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadName, setLeadName] = useState("");
+const [leadPhone, setLeadPhone] = useState("");
+const [leadEmail, setLeadEmail] = useState("");
+const [leadSource, setLeadSource] = useState("enquiry");
+const [leadRequirement, setLeadRequirement] = useState("");
   const plan = "free";
+  useEffect(() => {
+  apiFetch("/leads/vendor/2")
+    .then((data) => {
+      setLeads(data.leads || data.data || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load leads:", error);
+    });
+}, []);
+const handleAddLead = async () => {
+  try {
+    await apiFetch("/leads", {
+      method: "POST",
+      body: JSON.stringify({
+        vendor_id: 2,
+        customer_name: leadName,
+        customer_phone: leadPhone,
+        masked_phone: "••••••••",
+        customer_email: leadEmail || null,
+        lead_source: leadSource,
+        requirement_details: leadRequirement || null,
+        lead_status: "new",
+      }),
+    });
+
+    const data = await apiFetch("/leads/vendor/2");
+    setLeads(data.leads || []);
+
+    setLeadName("");
+    setLeadPhone("");
+    setLeadEmail("");
+    setLeadSource("enquiry");
+    setLeadRequirement("");
+    setShowAddModal(false);
+  } catch (error) {
+    console.error("Failed to add lead:", error);
+  }
+};
 
   return (
     <VLayout title="Leads" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Leads" }]}>
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-5">
-        <StatCard label="Total Leads" value={vendorLeads.length} icon={<TrendingUp size={16} />} color="brand" />
-        <StatCard label="New" value="2" icon={<TrendingUp size={16} />} color="sky" />
-        <StatCard label="Contacted" value="2" icon={<Phone size={16} />} color="amber" />
-        <StatCard label="Converted" value="1" icon={<TrendingUp size={16} />} color="emerald" />
-        <StatCard label="Closed" value="1" icon={<TrendingUp size={16} />} color="rose" />
+        <StatCard label="Total Leads" value={leads.length} icon={<TrendingUp size={16} />} color="brand" />
+        <StatCard label="New" value={leads.filter((l) => l.lead_status === "new").length} icon={<TrendingUp size={16} />} color="sky" />
+        <StatCard label="Contacted" value={leads.filter((l) => l.lead_status === "contacted").length} icon={<Phone size={16} />} color="amber" />
+        <StatCard label="Converted" value={leads.filter((l) => l.lead_status === "converted").length} icon={<TrendingUp size={16} />} color="emerald" />
+        <StatCard label="Closed" value={leads.filter((l) => l.lead_status === "closed").length} icon={<TrendingUp size={16} />} color="rose" />
       </div>
 
       {plan === "free" && <div className="mb-5">
-  <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" />
+  <UsageCounter
+  used={leads.length}
+  max={5}
+  label="Leads (Free Plan)"
+/>
 </div>}
 
       <div className="flex items-center justify-between mb-4">
@@ -309,20 +379,20 @@ export function VendorLeads() {
         <Button
           size="sm"
           onClick={() => setShowAddModal(true)}
-          disabled={plan === "free" && vendorLeads.length >= 5}
-          locked={plan === "free" && vendorLeads.length >= 5}
+          disabled={plan === "free" && leads.length >= 5}
+locked={plan === "free" && leads.length >= 5}
         >
           <Plus size={14} /> Add Lead
         </Button>
       </div>
 
       <Table headers={["Name", "Phone", "Source", "Enquiry", "Date", "Status", "Actions"]}>
-        {vendorLeads.filter((l) => activeTab === "New Leads" ? l.status === "new" : true).map((l) => (
+        {leads.filter((l) => activeTab === "New Leads" ? l.lead_status === "new" : true).map((l) => (
           <tr key={l.id} className="hover:bg-slate-50">
             <Td className="font-medium">
               <div className="flex items-center gap-2">
-                <Avatar name={l.name} size="sm" />
-                {l.name}
+                <Avatar name={l.customer_name} size="sm" />
+                {l.customer_name}
               </div>
             </Td>
             <Td>
@@ -333,13 +403,13 @@ export function VendorLeads() {
                   <Badge variant="premium" className="text-xs">Premium</Badge>
                 </div>
               ) : (
-                <span className="text-sm font-mono">{l.phone}</span>
+                <span className="text-sm font-mono">{l.customer_phone}</span>
               )}
             </Td>
-            <Td className="text-slate-500 text-xs">{l.source}</Td>
-            <Td className="text-slate-500 text-xs max-w-48"><p className="truncate">{l.enquiry}</p></Td>
-            <Td className="text-slate-500 text-xs">{l.date}</Td>
-            <Td><StatusBadge status={l.status} /></Td>
+            <Td className="text-slate-500 text-xs">{l.lead_source}</Td>
+            <Td className="text-slate-500 text-xs max-w-48"><p className="truncate">{l.requirement_details}</p></Td>
+            <Td className="text-slate-500 text-xs">{new Date(l.created_at).toLocaleDateString()}</Td>
+            <Td><StatusBadge status={l.lead_status} /></Td>
             <Td>
               <div className="flex items-center gap-2">
                 <button className="text-xs text-brand-600 hover:underline"><Eye size={12} /></button>
@@ -353,14 +423,49 @@ export function VendorLeads() {
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Lead">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Name" placeholder="Lead name" required />
-            <Input label="Phone" placeholder="+91 9XXXXXXXXX" required />
+            <Input
+  label="Name"
+  placeholder="Lead name"
+  required
+  value={leadName}
+  onChange={(value) => setLeadName(value)}
+/>
+            <Input
+  label="Phone"
+  placeholder="+91 9XXXXXXXXX"
+  required
+  value={leadPhone}
+  onChange={(value) => setLeadPhone(value)}
+/>
           </div>
-          <Input label="Email" placeholder="lead@example.com" type="email" />
-          <Select label="Source" options={[{ value: "website", label: "Website Enquiry" }, { value: "phone", label: "Phone Call" }, { value: "walk-in", label: "Walk-in" }, { value: "referral", label: "Referral" }]} placeholder="Select source" />
-          <Textarea label="Enquiry / Notes" placeholder="What did they enquire about?" rows={3} />
+          <Input
+  label="Email"
+  placeholder="lead@example.com"
+  type="email"
+  value={leadEmail}
+  onChange={(value) => setLeadEmail(value)}
+/>
+          <Select
+  label="Source"
+  options={[
+    { value: "enquiry", label: "Website Enquiry" },
+    { value: "click_to_call", label: "Phone Call" },
+    { value: "direct", label: "Walk-in" },
+    { value: "direct", label: "Referral" },
+  ]}
+  value={leadSource}
+  onChange={(value) => setLeadSource(value)}
+  placeholder="Select source"
+/>
+          <Textarea
+  label="Enquiry / Notes"
+  placeholder="What did they enquire about?"
+  rows={3}
+  value={leadRequirement}
+  onChange={(value) => setLeadRequirement(value)}
+/>
           <div className="flex gap-3">
-            <Button fullWidth onClick={() => setShowAddModal(false)}>Add Lead</Button>
+            <Button fullWidth onClick={handleAddLead}>Add Lead</Button>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
           </div>
         </div>
