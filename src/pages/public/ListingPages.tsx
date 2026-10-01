@@ -391,7 +391,7 @@ export function CategoriesPage() {
             return (
               <Link
                 key={ind.id}
-                to={`/services?industry=${ind.name}`}
+                to={`/services?industry_id=${ind.id}`}
                 className="flex flex-col items-center gap-3 p-6 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group"
               >
                 <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors">
@@ -417,29 +417,34 @@ export function CategoriesPage() {
 export function ServicesPage() {
   const [q, setQ] = useState("");
   const [industry, setIndustry] = useState("");
+  
   const [page, setPage] = useState(1);
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [services, setServices] = useState<any[]>([]);
 
-  useEffect(() => {
-    apiFetch("/services")
-      .then((data) => {
-        setServices(data.services || []);
-      })
-      .catch((error) => {
-        console.error("Failed to load services:", error);
-      });
-  }, []);
 
-  const filtered = services.filter(
-    (s) =>
-      (!q ||
-        s.title?.toLowerCase().includes(q.toLowerCase()) ||
-        s.vendor?.business_name
-          ?.toLowerCase()
-          .includes(q.toLowerCase())) &&
-      (!industry || s.sub_industry?.name === industry)
-  );
+  const params = new URLSearchParams(window.location.search);
+const selectedIndustryId = params.get("industry_id");
+
+const filtered = services.filter((s) => {
+  const matchesSearch =
+    !q ||
+    s.title?.toLowerCase().includes(q.toLowerCase()) ||
+    s.vendor?.business_name?.toLowerCase().includes(q.toLowerCase());
+
+  const serviceIndustryId = s.sub_industry?.industry_id;
+
+  const matchesCategory =
+    !selectedIndustryId ||
+    Number(serviceIndustryId) === Number(selectedIndustryId);
+
+  const matchesSubIndustry =
+    !industry ||
+    s.sub_industry?.name === industry;
+
+  return matchesSearch && matchesCategory && matchesSubIndustry;
+});
+
 
   const categories = [
     ...new Set(

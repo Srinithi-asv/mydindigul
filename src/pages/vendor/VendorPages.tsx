@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../../api";
 import { Link } from "react-router";
 import {
   Crown, Package, Users, TrendingUp, ShoppingBag, Calendar, Tag, Briefcase, Eye, Edit2, Trash2, Plus, Download, Phone, Mail, Lock
@@ -38,9 +39,32 @@ function VLayout({ children, title, breadcrumbs, plan = "free" }: { children: Re
 export function VendorDashboard() {
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [upgradeModal, setUpgradeModal] = useState(false);
+  const [vendor, setVendor] = useState<any>(null);
+const [stats, setStats] = useState<any>(null);
+const [recentLeads, setRecentLeads] = useState<any[]>([]);
+const [recentOrders, setRecentOrders] = useState<any[]>([]);
+const [limits, setLimits] = useState<any>(null);
 
+useEffect(() => {
+  apiFetch("/vendor/dashboard")
+    .then((data) => {
+      setVendor(data.vendor);
+      setPlan(data.plan?.type === "premium" ? "premium" : "free");
+      setStats(data.stats);
+      setRecentLeads(data.recent_leads || []);
+      setRecentOrders(data.recent_orders || []);
+      setLimits(data.limits || null);
+    })
+    .catch((error) => {
+      console.error("Failed to load vendor dashboard:", error);
+    });
+}, []);
   return (
-    <DashboardLayout type="vendor" userName="Murugan Pillai" plan={plan}>
+    <DashboardLayout
+  type="vendor"
+  userName={vendor?.business_name || "Vendor"}
+  plan={plan}
+>
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800">Vendor Dashboard</h1>
         <button
@@ -67,11 +91,36 @@ export function VendorDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 my-5">
-        <StatCard label="Services" value={vendorStats.services} icon={<Package size={18} />} color="brand" />
-        <StatCard label="Products" value={vendorStats.products} icon={<ShoppingBag size={18} />} color="sky" />
-        <StatCard label="Customers" value={`${vendorStats.customers}/5`} icon={<Users size={18} />} color="emerald" />
-        <StatCard label="Leads" value={`${vendorStats.leads}/5`} icon={<TrendingUp size={18} />} color="amber" />
-        <StatCard label="Visitors" value={vendorStats.visitors} icon={<Eye size={18} />} color="violet" />
+       <StatCard
+  label="Services"
+  value={stats?.services ?? 0}
+  icon={<Package size={18} />}
+  color="brand"
+/>
+        <StatCard
+  label="Products"
+  value={stats?.products ?? 0}
+  icon={<ShoppingBag size={18} />}
+  color="sky"
+/>
+        <StatCard
+  label="Customers"
+  value={`${stats?.customers ?? 0}/5`}
+  icon={<Users size={18} />}
+  color="emerald"
+/>
+        <StatCard
+  label="Leads"
+  value={`${stats?.leads ?? 0}/5`}
+  icon={<TrendingUp size={18} />}
+  color="amber"
+/>
+        <StatCard
+  label="Visitors"
+  value={stats?.visitors ?? 0}
+  icon={<Eye size={18} />}
+  color="violet"
+/>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -96,7 +145,7 @@ export function VendorDashboard() {
             <Link to="/vendor/leads" className="text-xs text-brand-600 hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
-            {vendorLeads.slice(0, 4).map((l) => (
+            {recentLeads.slice(0, 4).map((l) => (
               <div key={l.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
                 <Avatar name={l.name} size="sm" />
                 <div className="flex-1 min-w-0">
@@ -116,7 +165,7 @@ export function VendorDashboard() {
             <Link to="/vendor/orders" className="text-xs text-brand-600 hover:underline">View all</Link>
           </div>
           <div className="space-y-3">
-            {vendorOrders.slice(0, 4).map((o) => (
+            {recentOrders.slice(0, 4).map((o) => (
               <div key={o.id} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
                 <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
                   <ShoppingBag size={15} className="text-emerald-500" />
@@ -136,10 +185,26 @@ export function VendorDashboard() {
           <Card className="p-5">
             <h3 className="font-bold text-slate-700 mb-4">Free Plan Usage</h3>
             <div className="space-y-3">
-              <UsageCounter used={5} max={5} label="Customers" />
-              <UsageCounter used={5} max={5} label="Leads" />
-              <UsageCounter used={1} max={1} label="Job Postings" />
-              <UsageCounter used={1} max={1} label="Events" />
+              <UsageCounter
+  used={limits?.customers?.used ?? 0}
+  max={limits?.customers?.max ?? 0}
+  label="Customers"
+/>
+              <UsageCounter
+  used={limits?.leads?.used ?? 0}
+  max={limits?.leads?.max ?? 0}
+  label="Leads"
+/>
+              <UsageCounter
+  used={limits?.active_jobs?.used ?? 0}
+  max={limits?.active_jobs?.max ?? 0}
+  label="Job Postings"
+/>
+              <UsageCounter
+  used={limits?.events?.used ?? 0}
+  max={limits?.events?.max ?? 0}
+  label="Events"
+/>
             </div>
             <button onClick={() => setUpgradeModal(true)} className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors">
               <Crown size={14} /> Upgrade to Premium
@@ -181,7 +246,13 @@ export function VendorCompanyInfo() {
 
   return (
     <VLayout title="Company Information" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Company Info" }]}>
-      {saved && <Alert type="success" message="Company information updated successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="Company information updated successfully!"
+    onClose={() => setSaved(false)}
+  />
+</div>}
       <div className="max-w-2xl">
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -212,10 +283,14 @@ export function VendorCompanyInfo() {
             </div>
             <Input label="Address" value="42, Palani Road, Chinnalapatti, Dindigul - 624001" disabled={!editing} />
             <div className="grid grid-cols-2 gap-4">
-              <Select label="Industry" options={[{ value: "food", label: "Restaurants & Food" }]} value="food" disabled={!editing} />
-              <Select label="Sub-Industry" options={[{ value: "catering", label: "Catering" }]} value="catering" disabled={!editing} />
+             <Select
+  label="Sub-Industry"
+  options={[{ value: "catering", label: "Catering" }]}
+  value="catering"
+/>
+              <Select label="Sub-Industry" options={[{ value: "catering", label: "Catering" }]} value="catering" />
             </div>
-            <Textarea label="Description" value="Authentic Chettinad cuisine served fresh daily. Famous for mutton biryani and filter coffee." disabled={!editing} />
+           <Textarea label="Description" value="Authentic Chettinad cuisine served fresh daily. Famous for mutton biryani and filter coffee." />
           </div>
 
           {editing && (
@@ -234,40 +309,90 @@ export function VendorCompanyInfo() {
 export function VendorLeads() {
   const [activeTab, setActiveTab] = useState("All Leads");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [leadName, setLeadName] = useState("");
+const [leadPhone, setLeadPhone] = useState("");
+const [leadEmail, setLeadEmail] = useState("");
+const [leadSource, setLeadSource] = useState("enquiry");
+const [leadRequirement, setLeadRequirement] = useState("");
   const plan = "free";
+  useEffect(() => {
+  apiFetch("/leads/vendor/2")
+    .then((data) => {
+      setLeads(data.leads || data.data || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load leads:", error);
+    });
+}, []);
+const handleAddLead = async () => {
+  try {
+    await apiFetch("/leads", {
+      method: "POST",
+      body: JSON.stringify({
+        vendor_id: 2,
+        customer_name: leadName,
+        customer_phone: leadPhone,
+        masked_phone: "••••••••",
+        customer_email: leadEmail || null,
+        lead_source: leadSource,
+        requirement_details: leadRequirement || null,
+        lead_status: "new",
+      }),
+    });
+
+    const data = await apiFetch("/leads/vendor/2");
+    setLeads(data.leads || []);
+
+    setLeadName("");
+    setLeadPhone("");
+    setLeadEmail("");
+    setLeadSource("enquiry");
+    setLeadRequirement("");
+    setShowAddModal(false);
+  } catch (error) {
+    console.error("Failed to add lead:", error);
+  }
+};
 
   return (
     <VLayout title="Leads" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Leads" }]}>
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-5">
-        <StatCard label="Total Leads" value={vendorLeads.length} icon={<TrendingUp size={16} />} color="brand" />
-        <StatCard label="New" value="2" icon={<TrendingUp size={16} />} color="sky" />
-        <StatCard label="Contacted" value="2" icon={<Phone size={16} />} color="amber" />
-        <StatCard label="Converted" value="1" icon={<TrendingUp size={16} />} color="emerald" />
-        <StatCard label="Closed" value="1" icon={<TrendingUp size={16} />} color="rose" />
+        <StatCard label="Total Leads" value={leads.length} icon={<TrendingUp size={16} />} color="brand" />
+        <StatCard label="New" value={leads.filter((l) => l.lead_status === "new").length} icon={<TrendingUp size={16} />} color="sky" />
+        <StatCard label="Contacted" value={leads.filter((l) => l.lead_status === "contacted").length} icon={<Phone size={16} />} color="amber" />
+        <StatCard label="Converted" value={leads.filter((l) => l.lead_status === "converted").length} icon={<TrendingUp size={16} />} color="emerald" />
+        <StatCard label="Closed" value={leads.filter((l) => l.lead_status === "closed").length} icon={<TrendingUp size={16} />} color="rose" />
       </div>
 
-      {plan === "free" && <UsageCounter used={5} max={5} label="Leads (Free Plan)" className="mb-5" />}
+      {plan === "free" && <div className="mb-5">
+  <UsageCounter
+  used={leads.length}
+  max={5}
+  label="Leads (Free Plan)"
+/>
+</div>}
 
       <div className="flex items-center justify-between mb-4">
         <Tabs tabs={["New Leads", "All Leads"]} active={activeTab} onChange={setActiveTab} />
         <Button
           size="sm"
           onClick={() => setShowAddModal(true)}
-          disabled={plan === "free" && vendorLeads.length >= 5}
-          locked={plan === "free" && vendorLeads.length >= 5}
+          disabled={plan === "free" && leads.length >= 5}
+locked={plan === "free" && leads.length >= 5}
         >
           <Plus size={14} /> Add Lead
         </Button>
       </div>
 
       <Table headers={["Name", "Phone", "Source", "Enquiry", "Date", "Status", "Actions"]}>
-        {vendorLeads.filter((l) => activeTab === "New Leads" ? l.status === "new" : true).map((l) => (
+        {leads.filter((l) => activeTab === "New Leads" ? l.lead_status === "new" : true).map((l) => (
           <tr key={l.id} className="hover:bg-slate-50">
             <Td className="font-medium">
               <div className="flex items-center gap-2">
-                <Avatar name={l.name} size="sm" />
-                {l.name}
+                <Avatar name={l.customer_name} size="sm" />
+                {l.customer_name}
               </div>
             </Td>
             <Td>
@@ -278,13 +403,13 @@ export function VendorLeads() {
                   <Badge variant="premium" className="text-xs">Premium</Badge>
                 </div>
               ) : (
-                <span className="text-sm font-mono">{l.phone}</span>
+                <span className="text-sm font-mono">{l.customer_phone}</span>
               )}
             </Td>
-            <Td className="text-slate-500 text-xs">{l.source}</Td>
-            <Td className="text-slate-500 text-xs max-w-48"><p className="truncate">{l.enquiry}</p></Td>
-            <Td className="text-slate-500 text-xs">{l.date}</Td>
-            <Td><StatusBadge status={l.status} /></Td>
+            <Td className="text-slate-500 text-xs">{l.lead_source}</Td>
+            <Td className="text-slate-500 text-xs max-w-48"><p className="truncate">{l.requirement_details}</p></Td>
+            <Td className="text-slate-500 text-xs">{new Date(l.created_at).toLocaleDateString()}</Td>
+            <Td><StatusBadge status={l.lead_status} /></Td>
             <Td>
               <div className="flex items-center gap-2">
                 <button className="text-xs text-brand-600 hover:underline"><Eye size={12} /></button>
@@ -298,14 +423,49 @@ export function VendorLeads() {
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Lead">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Name" placeholder="Lead name" required />
-            <Input label="Phone" placeholder="+91 9XXXXXXXXX" required />
+            <Input
+  label="Name"
+  placeholder="Lead name"
+  required
+  value={leadName}
+  onChange={(value) => setLeadName(value)}
+/>
+            <Input
+  label="Phone"
+  placeholder="+91 9XXXXXXXXX"
+  required
+  value={leadPhone}
+  onChange={(value) => setLeadPhone(value)}
+/>
           </div>
-          <Input label="Email" placeholder="lead@example.com" type="email" />
-          <Select label="Source" options={[{ value: "website", label: "Website Enquiry" }, { value: "phone", label: "Phone Call" }, { value: "walk-in", label: "Walk-in" }, { value: "referral", label: "Referral" }]} placeholder="Select source" />
-          <Textarea label="Enquiry / Notes" placeholder="What did they enquire about?" rows={3} />
+          <Input
+  label="Email"
+  placeholder="lead@example.com"
+  type="email"
+  value={leadEmail}
+  onChange={(value) => setLeadEmail(value)}
+/>
+          <Select
+  label="Source"
+  options={[
+    { value: "enquiry", label: "Website Enquiry" },
+    { value: "click_to_call", label: "Phone Call" },
+    { value: "direct", label: "Walk-in" },
+    { value: "direct", label: "Referral" },
+  ]}
+  value={leadSource}
+  onChange={(value) => setLeadSource(value)}
+  placeholder="Select source"
+/>
+          <Textarea
+  label="Enquiry / Notes"
+  placeholder="What did they enquire about?"
+  rows={3}
+  value={leadRequirement}
+  onChange={(value) => setLeadRequirement(value)}
+/>
           <div className="flex gap-3">
-            <Button fullWidth onClick={() => setShowAddModal(false)}>Add Lead</Button>
+            <Button fullWidth onClick={handleAddLead}>Add Lead</Button>
             <Button variant="outline" onClick={() => setShowAddModal(false)}>Cancel</Button>
           </div>
         </div>
@@ -358,7 +518,15 @@ export function VendorCustomers() {
 
   return (
     <VLayout title="Customers" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Customers" }]}>
-      {plan === "free" && <UsageCounter used={5} max={5} label="Customers (Free Plan)" className="mb-5" />}
+      {plan === "free" && (
+  <div className="mb-5">
+    <UsageCounter
+      used={vendorStats.customers}
+      max={5}
+      label="Customers (Free Plan)"
+    />
+  </div>
+)}
 
       <div className="flex items-center justify-between mb-4">
         <SearchBar placeholder="Search customers..." className="w-64" />
@@ -440,7 +608,7 @@ export function VendorServices() {
           <Card key={s.id} className="overflow-hidden">
             <div className="relative h-36">
               <img src={s.image} alt={s.name} className="w-full h-full object-cover" />
-              <StatusBadge status={s.status} className="absolute top-3 right-3" />
+              <StatusBadge status={s.status}/>
             </div>
             <div className="p-4">
               <h3 className="font-bold text-slate-700">{s.name}</h3>
@@ -595,7 +763,9 @@ export function VendorJobs() {
 
   return (
     <VLayout title="Jobs" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Jobs" }]}>
-      {plan === "free" && <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" className="mb-5" />}
+      {plan === "free" && <div className="mb-5">
+  <UsageCounter used={1} max={1} label="Job Postings (Free Plan)" />
+</div>}
 
       <div className="flex items-center justify-between mb-5">
         <div />
@@ -661,7 +831,15 @@ export function VendorEvents() {
 
   return (
     <VLayout title="Events" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Events" }]}>
-      {plan === "free" && <UsageCounter used={1} max={1} label="Events (Free Plan)" className="mb-5" />}
+     {plan === "free" && (
+  <div className="mb-5">
+    <UsageCounter
+      used={vendorStats.leads}
+      max={5}
+      label="Leads (Free Plan)"
+    />
+  </div>
+)}
 
       <div className="flex justify-end mb-5">
         <Button size="sm" onClick={() => setShowAdd(true)} locked={plan === "free" && events.length >= 1}>
@@ -734,7 +912,13 @@ export function VendorSettings() {
 
   return (
     <VLayout title="Settings" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "Settings" }]}>
-      {saved && <Alert type="success" message="Settings saved successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="Settings saved successfully!"
+    onClose={() => setSaved(false)}
+    />
+  </div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Account Settings */}
@@ -797,7 +981,13 @@ export function VendorCMS() {
 
   return (
     <VLayout title="CMS" breadcrumbs={[{ label: "Dashboard", href: "/vendor/dashboard" }, { label: "CMS" }]}>
-      {saved && <Alert type="success" message="Content saved successfully!" onClose={() => setSaved(false)} className="mb-5" />}
+      {saved && <div className="mb-5">
+  <Alert
+    type="success"
+    message="..."
+    onClose={() => setSaved(false)}
+  />
+</div>}
 
       <Tabs tabs={["About Us", "Terms & Policies"]} active={activeTab} onChange={setActiveTab} />
 

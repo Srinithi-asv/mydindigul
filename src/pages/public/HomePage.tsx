@@ -272,7 +272,7 @@ useEffect(() => {
       return (
         <Link
           key={ind.id}
-          to={`/services?industry=${ind.name}`}
+          to={`/services?industry_id=${ind.id}`}
           className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group"
         >
           <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors text-xl">
@@ -332,7 +332,7 @@ useEffect(() => {
   className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
 />
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-slate-800 text-sm truncate">{b.name}</h3>
+                      <h3 className="font-bold text-slate-800 text-sm truncate">{b.business_name}</h3>
                       <p className="text-xs text-brand-600 font-medium">{b.industry?.name}</p>
                     </div>
                   </div>
@@ -341,9 +341,13 @@ useEffect(() => {
                   </div>
                   <div className="flex items-center gap-1 mt-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={11} fill={i < Math.floor(Number(b.avg_rating)) ? "#f97316" : "none"} className={i < Math.floor(b.rating) ? "text-brand-500" : "text-slate-300"} />
+                      <Star key={i} size={11} fill={i < Math.floor(Number(b.avg_rating)) ? "#f97316" : "none"} className={
+  i < Math.floor(Number(b.avg_rating))
+    ? "text-brand-500"
+    : "text-slate-300"
+} />
                     ))}
-                    <span className="text-xs text-slate-500 ml-1">{b.abg_rating} ({b.review_count})</span>
+                    <span className="text-xs text-slate-500 ml-1">{Number(b.avg_rating).toFixed(1)} ({b.review_count})</span>
                   </div>
                   <Link to={`/vendor/${b.slug}`} className="mt-3 block text-center text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 py-2 rounded-lg transition-colors">
                     View Profile →
@@ -356,28 +360,65 @@ useEffect(() => {
       </section>
 
       {/* Popular Services */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-slate-800">Popular Services</h2>
-          <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">Browse all <ChevronRight size={14} /></Link>
+<section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="text-xl font-bold text-slate-800">
+      Popular Services
+    </h2>
+
+    <Link
+      to="/services"
+      className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+    >
+      Browse all <ChevronRight size={14} />
+    </Link>
+  </div>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {services.slice(0, 6).map((s) => (
+      <div
+        key={s.id}
+        className="flex gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all"
+      >
+        <img
+          src={
+            s.banner_image_url ||
+            "https://images.unsplash.com/photo-1497366811353-6870744d04b2"
+          }
+          alt={s.title}
+          className="w-20 h-20 rounded-xl object-cover shrink-0"
+        />
+
+        <div className="flex-1 min-w-0">
+          <Badge variant="info" className="mb-1.5">
+            {s.sub_industry?.name}
+          </Badge>
+
+          <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1">
+            {s.title}
+          </h3>
+
+          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+            {s.description}
+          </p>
+
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm font-bold text-brand-600">
+              ₹{s.discounted_price || s.price}
+            </span>
+
+            <Link
+              to="/services"
+              className="text-xs text-brand-600 hover:underline font-medium"
+            >
+              View →
+            </Link>
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {services.map((s) => (
-            <div key={s.id} className="flex gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all">
-              <img src={s.banner_image_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"} alt={s.title} className="w-20 h-20 rounded-xl object-cover shrink-0" />
-              <div className="flex-1 min-w-0">
-                <Badge variant="info" className="mb-1.5">{s.sub_industry?.name}</Badge>
-                <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1">{s.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm font-bold text-brand-600">₹{s.discounted_price || s.price}</span>
-                  <Link to="/services" className="text-xs text-brand-600 hover:underline font-medium">View →</Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      </div>
+    ))}
+  </div>
+</section>
 
       {/* Products & Jobs side-by-side */}
       <section className="bg-slate-50 py-12">
