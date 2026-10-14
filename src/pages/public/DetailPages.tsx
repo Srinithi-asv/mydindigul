@@ -767,9 +767,10 @@ useEffect(() => {
 
   
 
-  const gallery = place.cover_image_url
-  ? [place.cover_image_url]
-  : [];
+  const gallery = [
+    place.cover_image_url ||
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4",
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -916,5 +917,4 @@ useEffect(() => {
     </div>
   );
 }
-
 

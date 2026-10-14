@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\TourismController;
 use App\Http\Controllers\Api\VendorDashboardController;
+use App\Http\Controllers\Api\VisitorAnalyticsController;
 
 // Authentication
 Route::post('/register', [AuthController::class, 'register']);
@@ -33,6 +34,10 @@ Route::get('/industries/{id}', [IndustryController::class, 'show']);
 Route::post('/industries', [IndustryController::class, 'store']);
 Route::put('/industries/{id}', [IndustryController::class, 'update']);
 Route::delete('/industries/{id}', [IndustryController::class, 'destroy']);
+
+// Tourism - Public routes
+Route::get('/tourism', [TourismController::class, 'index']);
+Route::get('/tourism/{id}', [TourismController::class, 'show']);
 
 
 // Sub-Industries - Public routes
@@ -186,6 +191,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/vendor/dashboard', [VendorDashboardController::class, 'index']);
+    Route::post(
+    '/vendors/{vendor}/track-view',
+    [VisitorAnalyticsController::class, 'trackVendorView']
+);
 
     // User Addresses
     Route::get('/addresses', [UserAddressController::class, 'index']);

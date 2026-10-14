@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import {
   Search,
   Filter,
@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import PublicHeader from "../../components/layout/PublicHeader";
 import PublicFooter from "../../components/layout/PublicFooter";
-import { services, products, jobs, tourismPlaces, businesses } from "../../data/mockData";
 import { apiFetch } from "../../api";
 import { Badge, SearchBar, Select, StatusBadge, Pagination, SkeletonCard, EmptyState, Button } from "../../components/ui";
 
@@ -88,7 +87,7 @@ export function EventsPage() {
 
                 <div className="flex items-center gap-2 mt-3 text-sm text-slate-500">
                   <MapPin size={14} />
-                  {event.location}
+                  {event.venue_name || event.venue_address}
                 </div>
 
                 <div className="flex items-center justify-between mt-4">
@@ -211,17 +210,17 @@ const [ticketsCount, setTicketsCount] = useState(1);
           <div className="mt-6 space-y-3 text-sm text-slate-600">
             <div className="flex items-center gap-2">
               <MapPin size={16} />
-              <span>{event.location}</span>
+              <span>{event.venue_name || event.venue_address}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <Calendar size={16} />
-              <span>{event.start_date || event.event_date || "Date not available"}</span>
+              <span>{event.start_datetime || event.start_date || event.event_date || "Date not available"}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <Clock size={16} />
-              <span>{event.start_time || "Time not available"}</span>
+              <span>{event.start_time || event.start_datetime || "Time not available"}</span>
             </div>
           </div>
 
@@ -415,7 +414,9 @@ export function CategoriesPage() {
 
 // ─── SERVICES PAGE ────────────────────────────────────────────────────────────
 export function ServicesPage() {
-  const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const industryId = searchParams.get("industry_id") || "";
+  const [q, setQ] = useState(searchParams.get("q") || "");
   const [industry, setIndustry] = useState("");
   
   const [page, setPage] = useState(1);
@@ -423,28 +424,16 @@ export function ServicesPage() {
   const [services, setServices] = useState<any[]>([]);
 
 
-  const params = new URLSearchParams(window.location.search);
-const selectedIndustryId = params.get("industry_id");
-
-const filtered = services.filter((s) => {
-  const matchesSearch =
-    !q ||
-    s.title?.toLowerCase().includes(q.toLowerCase()) ||
-    s.vendor?.business_name?.toLowerCase().includes(q.toLowerCase());
-
-  const serviceIndustryId = s.sub_industry?.industry_id;
-
-  const matchesCategory =
-    !selectedIndustryId ||
-    Number(serviceIndustryId) === Number(selectedIndustryId);
-
-  const matchesSubIndustry =
-    !industry ||
-    s.sub_industry?.name === industry;
-
-  return matchesSearch && matchesCategory && matchesSubIndustry;
-});
-
+  const filtered = services.filter(
+    (s) =>
+      (!q ||
+        s.title?.toLowerCase().includes(q.toLowerCase()) ||
+        s.vendor?.business_name
+          ?.toLowerCase()
+          .includes(q.toLowerCase())) &&
+      (!industryId || String(s.sub_industry?.industry_id) === industryId) &&
+      (!industry || s.sub_industry?.name === industry)
+  );
 
   const categories = [
     ...new Set(
@@ -635,7 +624,8 @@ const filtered = services.filter((s) => {
 
 // ─── PRODUCTS PAGE ────────────────────────────────────────────────────────────
 export function ProductsPage() {
-  const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const [q, setQ] = useState(searchParams.get("q") || "");
   const [page, setPage] = useState(1);
   const [wishlist, setWishlist] = useState<number[]>([]);
    const [products, setProducts] = useState<any[]>([]);
@@ -689,7 +679,7 @@ export function ProductsPage() {
   onClick={() =>
     setWishlist((prev) =>
       prev.includes(p.id)
-        ? prev.filter((x) => x !== x)
+        ? prev.filter((x) => x !== p.id)
         : [...prev, p.id]
     )
   }
@@ -735,56 +725,51 @@ export function ProductsPage() {
 
 // ─── JOBS PAGE ────────────────────────────────────────────────────────────────
 export function JobsPage() {
-  const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const { id: routeJobId } = useParams();
+  const [q, setQ] = useState(searchParams.get("q") || "");
   const [type, setType] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [applyModal, setApplyModal] = useState(false);
   const [applyStep, setApplyStep] = useState(1);
-
-  const [apiJobs, setApiJobs] = useState<any[]>([]);
+  const [jobPostings, setJobPostings] = useState<any[]>([]);
 
   useEffect(() => {
-  apiFetch("/job-postings")
-    .then((data) => {
-      const allJobs = data.job_postings || data.data || [];
-      setApiJobs(allJobs);
-    })
-    .catch((error) => {
-      console.error("Failed to load jobs:", error);
-    });
-}, []);
+    apiFetch("/job-postings")
+      .then((data) => {
+        setJobPostings(data.job_postings || []);
+      })
+      .catch((error) => {
+        console.error("Failed to load job postings:", error);
+      });
+  }, []);
 
- const filtered = apiJobs
-  .map((j) => ({
-    ...j,
-    company: j.vendor?.business_name || "Company",
-    type: j.job_type === "full_time" ? "Full-time" : j.job_type,
-    salary: `₹${Number(j.salary_min).toLocaleString()} - ₹${Number(j.salary_max).toLocaleString()}`,
-    postedDate: new Date(j.created_at).toLocaleDateString(),
-    requirements: j.skills_required || [],
-  }))
-  .filter(
-    (j) =>
-      (!q ||
-        j.title.toLowerCase().includes(q.toLowerCase()) ||
-        j.company.toLowerCase().includes(q.toLowerCase())) &&
-      (!type || j.type === type)
+  useEffect(() => {
+    if (routeJobId) setSelected(Number(routeJobId));
+  }, [routeJobId]);
+
+  const filtered = jobPostings.filter((job) =>
+    (!q ||
+      job.title?.toLowerCase().includes(q.toLowerCase()) ||
+      job.vendor?.business_name?.toLowerCase().includes(q.toLowerCase())) &&
+    (!type || job.job_type?.replace(/_/g, "-") === type.toLowerCase())
   );
 
   const selectedJob =
-  filtered.find((j) => j.id === selected) || filtered[0];
-
-  if (!selectedJob) {
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <PublicHeader />
-      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <p className="text-slate-500">No jobs available.</p>
-      </div>
-      <PublicFooter />
-    </div>
-  );
-}
+    jobPostings.find((job) => job.id === selected) ||
+    jobPostings.find((job) => String(job.id) === routeJobId) ||
+    filtered[0];
+  const jobTypeLabel = (jobType: string) =>
+    jobType?.replace(/_/g, "-").replace(/(^|-)\w/g, (part) => part.toUpperCase()) || "Job";
+  const salaryLabel = (job: any) =>
+    job.salary_min != null
+      ? `₹${job.salary_min}${job.salary_max ? ` - ₹${job.salary_max}` : "+"}`
+      : "Salary negotiable";
+  const requirements = Array.isArray(selectedJob?.skills_required)
+    ? selectedJob.skills_required
+    : selectedJob?.qualification
+      ? [selectedJob.qualification]
+      : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -808,7 +793,7 @@ export function JobsPage() {
               <div
                 key={j.id}
                 onClick={() => setSelected(j.id)}
-                className={`p-5 bg-white rounded-xl border cursor-pointer transition-all hover:shadow-md ${selected === j.id ? "border-brand-400 shadow-md bg-brand-50/30" : "border-slate-200"}`}
+                className={`p-5 bg-white rounded-xl border cursor-pointer transition-all hover:shadow-md ${(selectedJob?.id === j.id) ? "border-brand-400 shadow-md bg-brand-50/30" : "border-slate-200"}`}
               >
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
@@ -816,13 +801,13 @@ export function JobsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-slate-800">{j.title}</h3>
-                    <p className="text-sm text-slate-600 mt-0.5">{j.company}</p>
+                    <p className="text-sm text-slate-600 mt-0.5">{j.vendor?.business_name || "Local business"}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                      <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={11} />{j.location}</span>
-                      <StatusBadge status={j.type} />
-                      <span className="text-xs text-slate-500"><Clock size={10} className="inline mr-1" />{j.postedDate}</span>
+                      <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={11} />{j.location || "Dindigul"}</span>
+                      <StatusBadge status={jobTypeLabel(j.job_type)} />
+                      <span className="text-xs text-slate-500"><Clock size={10} className="inline mr-1" />{j.created_at ? new Date(j.created_at).toLocaleDateString() : ""}</span>
                     </div>
-                    <p className="text-sm font-semibold text-brand-600 mt-2">{j.salary}</p>
+                    <p className="text-sm font-semibold text-brand-600 mt-2">{salaryLabel(j)}</p>
                   </div>
                 </div>
               </div>
@@ -831,6 +816,7 @@ export function JobsPage() {
 
           {/* Job detail */}
           <div className="hidden lg:block">
+            {selectedJob ? (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sticky top-20">
               <div className="flex items-start gap-4 mb-6">
                 <div className="w-14 h-14 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
@@ -838,28 +824,28 @@ export function JobsPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">{selectedJob.title}</h2>
-                  <p className="text-slate-600">{selectedJob.company}</p>
+                  <p className="text-slate-600">{selectedJob.vendor?.business_name || "Local business"}</p>
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={10} />{selectedJob.location}</span>
-                    <StatusBadge status={selectedJob.type} />
+                    <StatusBadge status={jobTypeLabel(selectedJob.job_type)} />
                   </div>
                 </div>
               </div>
 
               <div className="bg-brand-50 rounded-xl p-4 mb-5">
-                <p className="text-sm font-bold text-brand-700">{selectedJob.salary}</p>
+                <p className="text-sm font-bold text-brand-700">{salaryLabel(selectedJob)}</p>
                 <p className="text-xs text-brand-600 mt-0.5">Salary Range</p>
               </div>
 
               <div className="space-y-4 mb-6">
                 <div>
                   <h4 className="font-semibold text-slate-700 text-sm mb-2">About the Role</h4>
-                  <p className="text-sm text-slate-600">{selectedJob.description}</p>
+                  <p className="text-sm text-slate-600">{selectedJob.description || "No description provided."}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-700 text-sm mb-2">Requirements</h4>
                   <ul className="space-y-1">
-                    {selectedJob.requirements.map((r: string, i: number) => (
+                    {requirements.map((r: string, i: number) => (
                       <li key={i} className="text-sm text-slate-600 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 bg-brand-500 rounded-full shrink-0" />{r}
                       </li>
@@ -870,18 +856,23 @@ export function JobsPage() {
 
               <Button fullWidth onClick={() => setApplyModal(true)}>Apply Now</Button>
             </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 p-6 text-sm text-slate-500 sticky top-20">
+                {q ? "No jobs match your search." : "No job postings available."}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Apply Modal */}
-      {applyModal && (
+      {applyModal && selectedJob && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setApplyModal(false); setApplyStep(1); }} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="p-6 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 text-lg">Apply for {selectedJob.title}</h3>
-              <p className="text-sm text-slate-500 mt-1">{selectedJob.company}</p>
+              <p className="text-sm text-slate-500 mt-1">{selectedJob.vendor?.business_name || "Local business"}</p>
             </div>
             <div className="p-6">
               {applyStep === 1 && (
@@ -940,8 +931,9 @@ export function JobsPage() {
 
 // ─── TOURISM PAGE ─────────────────────────────────────────────────────────────
 export function TourismPage() {
-  const [q, setQ] = useState("");
-   const [apiPlaces, setApiPlaces] = useState<any[]>([]);
+  const [searchParams] = useSearchParams();
+  const [q, setQ] = useState(searchParams.get("q") || "");
+  const [apiPlaces, setApiPlaces] = useState<any[]>([]);
 
    useEffect(() => {
   apiFetch("/tourism")
@@ -954,11 +946,11 @@ export function TourismPage() {
     });
 }, []);
 
- const filtered = apiPlaces.filter((p) =>
-  !q ||
-  p.name.toLowerCase().includes(q.toLowerCase()) ||
-  (p.location || "").toLowerCase().includes(q.toLowerCase())
-);
+  const filtered = apiPlaces.filter((place) =>
+    !q ||
+    place.name?.toLowerCase().includes(q.toLowerCase()) ||
+    place.location_address?.toLowerCase().includes(q.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -989,14 +981,14 @@ export function TourismPage() {
           {filtered.map((place) => (
             <Link key={place.id} to={`/tourism/${place.id}`} className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all overflow-hidden">
               <div className="relative h-52">
-                <img src={place.cover_image_url} alt={place.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <img src={place.cover_image_url || "https://images.unsplash.com/photo-1506905925346-21bda4d32df4"} alt={place.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                <Badge variant="info" className="absolute top-3 left-3">{place.category}</Badge>
+                <Badge variant="info" className="absolute top-3 left-3">{place.tourism_category?.name || place.category}</Badge>
               </div>
               <div className="p-4">
                 <h3 className="font-bold text-slate-800 mb-1">{place.name}</h3>
                 <div className="flex items-center gap-1 text-xs text-slate-500 mb-2"><MapPin size={11} />{place.location_address}</div>
-                <p className="text-xs text-slate-500 line-clamp-2">{place.description}</p>
+                <p className="text-xs text-slate-500 line-clamp-2">{place.tagline || place.history_overview}</p>
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {(place.highlights || []).slice(0, 3).map((h:string) => (
                     <span key={h} className="text-xs bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full font-medium">{h}</span>
@@ -1014,47 +1006,60 @@ export function TourismPage() {
 
 // ─── VENDOR STOREFRONT ────────────────────────────────────────────────────────
 export function VendorStorefront() {
-  const vendor = businesses[0];
- const [vendorServices, setVendorServices] = useState<any[]>([]);
+  const { slug } = useParams();
+  const [vendor, setVendor] = useState<any>(null);
+  const [vendorServices, setVendorServices] = useState<any[]>([]);
   const [vendorProducts, setVendorProducts] = useState<any[]>([]);
-   const [activeTab, setActiveTab] = useState("about");
+  const [vendorLoadError, setVendorLoadError] = useState(false);
+  const [activeTab, setActiveTab] = useState("about");
   const [enquiryModal, setEnquiryModal] = useState(false);
   const [enquirySubmitted, setEnquirySubmitted] = useState(false);
   const [wishlist, setWishlist] = useState(false);
 
   const tabs = ["about", "services", "products", "jobs", "offers"];
-   
 
   useEffect(() => {
-  apiFetch("/services")
-    .then((data) => {
-      const allServices = data.services || data.data || [];
+    setVendor(null);
+    setVendorServices([]);
+    setVendorProducts([]);
+    setVendorLoadError(false);
 
-      setVendorServices(
-        allServices.filter(
-          (service: any) => service.vendor_id === vendor.id
-        )
-      );
-    })
-    .catch((error) => {
-      console.error("Failed to load services:", error);
-    });
+    apiFetch("/vendors")
+      .then((data) => {
+        const matchingVendor = (data.vendors || []).find(
+          (entry: any) => entry.slug === slug
+        );
 
-  apiFetch("/products")
-    .then((data) => {
-      const allProducts = data.products || data.data || [];
+        if (!matchingVendor) {
+          setVendorLoadError(true);
+          return;
+        }
 
-      setVendorProducts(
-        allProducts.filter(
-          (product: any) => product.vendor_id === vendor.id
-        )
-      );
-    })
-    .catch((error) => {
-      console.error("Failed to load products:", error);
-    });
-}, [vendor.id]);  
+        setVendor(matchingVendor);
+        apiFetch(`/services/vendor/${matchingVendor.id}`)
+          .then((serviceData) => setVendorServices(serviceData.services || []))
+          .catch((error) => console.error("Failed to load vendor services:", error));
+        apiFetch(`/products/vendor/${matchingVendor.id}`)
+          .then((productData) => setVendorProducts(productData.products || []))
+          .catch((error) => console.error("Failed to load vendor products:", error));
+      })
+      .catch((error) => {
+        setVendorLoadError(true);
+        console.error("Failed to load business profile:", error);
+      });
+  }, [slug]);
 
+  if (!vendor) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <PublicHeader />
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 text-slate-500">
+          {vendorLoadError ? "Unable to load this business profile." : "Loading business profile..."}
+        </main>
+        <PublicFooter />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -1063,7 +1068,7 @@ export function VendorStorefront() {
       {/* Cover */}
       <div className="relative h-52 bg-gradient-to-br from-slate-700 to-slate-900 overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1517244683847-7456b63c5969?w=1200&h=400&fit=crop&auto=format"
+          src={vendor.cover_url || "https://images.unsplash.com/photo-1517244683847-7456b63c5969?w=1200&h=400&fit=crop&auto=format"}
           alt="Cover"
           className="w-full h-full object-cover opacity-60"
         />
@@ -1073,24 +1078,24 @@ export function VendorStorefront() {
         {/* Business Info Card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm -mt-16 relative z-10 p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-start gap-5">
-            <img src={vendor.logo} alt={vendor.name} className="w-20 h-20 rounded-xl object-cover border-4 border-white shadow-md shrink-0" />
+            <img src={vendor.logo_url || vendor.cover_url || "https://images.unsplash.com/photo-1414235077428-338989a2e8c0"} alt={vendor.business_name} className="w-20 h-20 rounded-xl object-cover border-4 border-white shadow-md shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-start gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-slate-800">{vendor.name}</h1>
-                {vendor.plan === "premium" && <Badge variant="premium">⭐ Premium</Badge>}
-                {vendor.verified && <Badge variant="success">✓ Verified</Badge>}
+                <h1 className="text-2xl font-bold text-slate-800">{vendor.business_name}</h1>
+                {vendor.plan_type === "premium" && <Badge variant="premium">⭐ Premium</Badge>}
+                {vendor.is_verified && <Badge variant="success">✓ Verified</Badge>}
               </div>
-              <p className="text-brand-600 font-medium text-sm">{vendor.category}</p>
+              <p className="text-brand-600 font-medium text-sm">{vendor.industry?.name}</p>
               <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-slate-500">
-                <span className="flex items-center gap-1"><MapPin size={13} />{vendor.location}</span>
-                <span>{vendor.phone}</span>
-                <span>{vendor.email}</span>
+                <span className="flex items-center gap-1"><MapPin size={13} />{vendor.city || vendor.address_line1}</span>
+                {vendor.phone && <span>{vendor.phone}</span>}
+                {vendor.email && <span>{vendor.email}</span>}
               </div>
               <div className="flex items-center gap-1 mt-2">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} fill={i < Math.floor(vendor.rating) ? "#f97316" : "none"} className={i < Math.floor(vendor.rating) ? "text-brand-500" : "text-slate-300"} />
+                  <Star key={i} size={14} fill={i < Math.floor(Number(vendor.avg_rating || 0)) ? "#f97316" : "none"} className={i < Math.floor(Number(vendor.avg_rating || 0)) ? "text-brand-500" : "text-slate-300"} />
                 ))}
-                <span className="text-sm text-slate-500 ml-1">{vendor.rating} ({vendor.reviewCount} reviews)</span>
+                <span className="text-sm text-slate-500 ml-1">{Number(vendor.avg_rating || 0)} ({vendor.review_count || 0} reviews)</span>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1123,12 +1128,12 @@ export function VendorStorefront() {
           {activeTab === "about" && (
             <div>
               <h2 className="font-bold text-slate-800 text-lg mb-3">About Us</h2>
-              <p className="text-slate-600 leading-relaxed">{vendor.description}</p>
+              <p className="text-slate-600 leading-relaxed">{vendor.about_us}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
                 <div className="p-4 bg-slate-50 rounded-xl">
                   <h4 className="font-semibold text-slate-700 text-sm mb-2">Contact Information</h4>
                   <div className="space-y-1.5 text-sm text-slate-600">
-                    <p>📍 {vendor.address}</p>
+                    <p>📍 {[vendor.address_line1, vendor.address_line2, vendor.city, vendor.pincode].filter(Boolean).join(", ")}</p>
                     <p>📞 {vendor.phone}</p>
                     <p>✉️ {vendor.email}</p>
                   </div>
@@ -1136,8 +1141,8 @@ export function VendorStorefront() {
                 <div className="p-4 bg-slate-50 rounded-xl">
                   <h4 className="font-semibold text-slate-700 text-sm mb-2">Business Info</h4>
                   <div className="space-y-1.5 text-sm text-slate-600">
-                    <p><span className="font-medium">Category:</span> {vendor.category}</p>
-                    <p><span className="font-medium">Plan:</span> <Badge variant={vendor.plan === "premium" ? "premium" : "default"}>{vendor.plan}</Badge></p>
+                    <p><span className="font-medium">Category:</span> {vendor.industry?.name}</p>
+                    <p><span className="font-medium">Plan:</span> <Badge variant={vendor.plan_type === "premium" ? "premium" : "default"}>{vendor.plan_type}</Badge></p>
                   </div>
                 </div>
               </div>
@@ -1147,21 +1152,13 @@ export function VendorStorefront() {
             <div>
               <h2 className="font-bold text-slate-800 text-lg mb-4">Services Offered</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {vendorServices.map((s)=> (
+                {vendorServices.map((s) => (
                   <div key={s.id} className="flex gap-3 p-4 bg-slate-50 rounded-xl">
-                  <img
-  src={
-    s.banner_image_url ||
-    s.images?.[0] ||
-    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=300"
-  }
-  alt={s.title}
-  className="w-16 h-16 rounded-lg object-cover shrink-0"
-/>
+                    <img src={s.banner_image_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"} alt={s.title} className="w-16 h-16 rounded-lg object-cover shrink-0" />
                     <div>
                       <h3 className="font-semibold text-slate-700 text-sm">{s.name || s.title}</h3>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
-                      <p className="text-sm font-bold text-brand-600 mt-1">{s.price}</p>
+                      <p className="text-sm font-bold text-brand-600 mt-1">₹{s.discounted_price || s.price}</p>
                     </div>
                   </div>
                 ))}
@@ -1172,19 +1169,11 @@ export function VendorStorefront() {
             <div>
               <h2 className="font-bold text-slate-800 text-lg mb-4">Products</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-               {vendorProducts.map((p) => (
+                {vendorProducts.map((p) => (
                   <div key={p.id} className="p-3 bg-slate-50 rounded-xl">
-                    <img
-  src={
-    p.thumbnail_url ||
-    p.gallery_urls?.[0] ||
-    "https://images.unsplash.com/photo-1558655146-d09347e92766?w=400"
-  }
-  alt={p.name}
-  className="w-full h-28 rounded-lg object-cover mb-2"
-/>
+                    <img src={p.thumbnail_url || "https://images.unsplash.com/photo-1558655146-d09347e92766"} alt={p.name} className="w-full h-28 rounded-lg object-cover mb-2" />
                     <h3 className="font-semibold text-slate-700 text-xs line-clamp-2 mb-1">{p.name}</h3>
-                    <p className="text-sm font-bold text-brand-600">{p.sale_price || p.regular_price}</p>
+                    <p className="text-sm font-bold text-brand-600">₹{p.sale_price || p.regular_price}</p>
                   </div>
                 ))}
               </div>
@@ -1207,7 +1196,7 @@ export function VendorStorefront() {
             {!enquirySubmitted ? (
               <>
                 <h3 className="font-bold text-slate-800 text-xl mb-1">Send Enquiry</h3>
-                <p className="text-sm text-slate-500 mb-5">To: {vendor.name}</p>
+                <p className="text-sm text-slate-500 mb-5">To: {vendor.business_name}</p>
                 <div className="space-y-3">
                   <input placeholder="Your Name" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
                   <input placeholder="Phone Number" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
@@ -1224,7 +1213,7 @@ export function VendorStorefront() {
                   </svg>
                 </div>
                 <h3 className="font-bold text-slate-800 text-xl mb-2">Enquiry Sent!</h3>
-                <p className="text-slate-500 text-sm mb-4">Your enquiry has been sent to {vendor.name}. They will contact you soon.</p>
+                <p className="text-slate-500 text-sm mb-4">Your enquiry has been sent to {vendor.business_name}. They will contact you soon.</p>
                 <p className="text-xs text-slate-400 font-mono bg-slate-50 px-3 py-1.5 rounded-lg inline-block mb-4">ENQ-2024-0045</p>
                 <Button onClick={() => { setEnquiryModal(false); setEnquirySubmitted(false); }} fullWidth>Done</Button>
               </div>

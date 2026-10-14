@@ -9,7 +9,11 @@ function UserLayout({ children, title, breadcrumbs }: { children: React.ReactNod
   return (
     <DashboardLayout type="user" userName="Ramesh Kumar">
       <div className="mb-5">
-        {breadcrumbs && <Breadcrumb items={breadcrumbs} className="mb-2" />}
+        {breadcrumbs && (
+          <div className="mb-2">
+            <Breadcrumb items={breadcrumbs} />
+          </div>
+        )}
         <h1 className="text-xl font-bold text-slate-800">{title}</h1>
       </div>
       {children}

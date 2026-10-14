@@ -54,7 +54,13 @@ class VendorDashboardController extends Controller
             ->latest()
             ->take(5)
             ->get();
-
+        // Visitor trend for the last 7 days.
+$visitorTrend = $vendor->visitorAnalytics()
+    ->where('created_at', '>=', now()->subDays(6)->startOfDay())
+    ->selectRaw('DATE(created_at) as date, COUNT(*) as visitors')
+    ->groupByRaw('DATE(created_at)')
+    ->orderBy('date')
+    ->get();
         return response()->json([
             'vendor' => $vendor->load([
                 'industry',

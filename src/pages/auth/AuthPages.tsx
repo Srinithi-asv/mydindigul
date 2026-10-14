@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "../../api";
 import { Link, useNavigate } from "react-router";
 import { Building2, Eye, EyeOff, ArrowLeft, Phone, Mail, CheckCircle } from "lucide-react";
@@ -252,6 +252,19 @@ const [phone, setPhone] = useState("");
 const [email, setEmail] = useState("");
 const [industryId, setIndustryId] = useState("");
 const [subIndustryId, setSubIndustryId] = useState("");
+const [subIndustries, setSubIndustries] = useState<any[]>([]);
+
+useEffect(() => {
+  apiFetch("/sub-industries")
+    .then((data) => {
+      setSubIndustries(
+        Array.isArray(data) ? data : data.sub_industries || data.data || []
+      );
+    })
+    .catch((error) => {
+      console.error("Failed to load sub-industries:", error);
+    });
+}, []);
 const [address, setAddress] = useState("");
 const [city, setCity] = useState("");
 const [pincode, setPincode] = useState("");
@@ -367,7 +380,10 @@ const handleBusinessRegister = async () => {
                   <label className="text-sm font-medium text-slate-700 block mb-1">Industry <span className="text-rose-500">*</span></label>
                   <select
   value={industryId}
-  onChange={(e) => setIndustryId(e.target.value)}
+  onChange={(e) => {
+  setIndustryId(e.target.value);
+  setSubIndustryId("");
+}}
   className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm"
 >
                     <option value="">Select Industry</option>
@@ -376,9 +392,20 @@ const handleBusinessRegister = async () => {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-700 block mb-1">Sub-Industry</label>
-                  <select className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200">
-                    <option>Select Sub-Industry</option>
-                  </select>
+                  <select
+  value={subIndustryId}
+  onChange={(e) => setSubIndustryId(e.target.value)}
+  className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+>
+  <option value="">Select Sub-Industry</option>
+{subIndustries
+  .filter((item) => String(item.industry_id) === industryId)
+  .map((item) => (
+    <option key={item.id} value={String(item.id)}>
+      {item.name}
+    </option>
+  ))}
+</select>
                 </div>
               </div>
               <Input

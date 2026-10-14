@@ -12,7 +12,7 @@ import { LoginPage, RegisterPage, BusinessRegisterPage, ForgotPasswordPage } fro
 import { UserDashboard, UserEnquiries, UserOrders, UserJobs, UserEvents, UserWishlist, UserProfile, UserResetPassword } from "./pages/user/UserPages";
 
 // Vendor pages
-import { VendorDashboard, VendorCompanyInfo, VendorLeads, VendorOrders, VendorCustomers, VendorServices, VendorAnalytics, VendorJobs, VendorEvents, VendorSettings, VendorCMS, VendorOffers } from "./pages/vendor/VendorPages";
+import { VendorDashboard, VendorCompanyInfo, VendorLeads, VendorOrders, VendorCustomers, VendorServices, VendorAnalytics, VendorJobs, VendorEvents, VendorSettings, VendorCMS, VendorOffers, VendorProducts } from "./pages/vendor/VendorPages";
 
 // Admin pages
 import { AdminDashboard, AdminVendors, AdminUsers, AdminServices, AdminProducts, AdminIndustries, AdminJobs, AdminEvents } from "./pages/admin/AdminPages";
@@ -70,7 +70,7 @@ export const router = createBrowserRouter([
   { path: "/vendor/company-info", Component: VendorCompanyInfo },
   { path: "/vendor/cms", Component: VendorCMS },
   { path: "/vendor/services", Component: VendorServices },
-  { path: "/vendor/products", Component: VendorServices }, // reuse form pattern
+  { path: "/vendor/products", Component: VendorProducts }, // reuse form pattern
   { path: "/vendor/catalogue", Component: VendorServices },
   { path: "/vendor/orders", Component: VendorOrders },
   { path: "/vendor/customers", Component: VendorCustomers },

@@ -10,23 +10,32 @@ export default function HomePage() {
   const navigate = useNavigate();
 
   const [industries, setIndustries] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [jobPostings, setJobPostings] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
-const [vendors, setVendors] = useState<any[]>([]);
-const [tourismPlaces, setTourismPlaces] = useState<any[]>([]);
-const [wishlist, setWishlist] = useState<Record<number, number>>({});
+  const [tourismPlaces, setTourismPlaces] = useState<any[]>([]);
+  const [wishlist, setWishlist] = useState<Record<number, number>>({});
   useEffect(() => {
 
     apiFetch("/industries")
       .then((data) => {
-        console.log("Industries API response:", data);
         setIndustries(data.industries || []);
       })
       .catch((error) => {
         console.error("Failed to load industries:", error);
       });
+  }, []);
+
+  useEffect(() => {
+  apiFetch("/vendors")
+    .then((data) => {
+      setVendors(data.vendors || []);
+    })
+    .catch((error) => {
+      console.error("Failed to load businesses:", error);
+    });
   }, []);
 
   useEffect(() => {
@@ -81,16 +90,6 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  apiFetch("/vendors")
-    .then((data) => {
-      setVendors(data.vendors || []);
-    })
-    .catch((error) => {
-      console.error("Failed to load vendors:", error);
-    });
-}, []);
-
-useEffect(() => {
   const token = localStorage.getItem("auth_token");
 
   if (!token) {
@@ -127,61 +126,71 @@ useEffect(() => {
 
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
-  
 
-  const toggleWishlist = async (vendorId: number) => {
-  const token = localStorage.getItem("auth_token");
+  const runSearch = () => {
+    const destinations: Record<string, string> = {
+      All: "/services",
+      Services: "/services",
+      Products: "/products",
+      Jobs: "/jobs",
+      Tourism: "/tourism",
+    };
+    const search = new URLSearchParams();
+    if (q.trim()) search.set("q", q.trim());
+    const query = search.toString();
+    navigate(`${destinations[category] || "/services"}${query ? `?${query}` : ""}`);
+  };
 
-  if (!token) {
-    navigate("/login");
-    return;
-  }
+  const toggleWishlist = async (id: number) => {
+    const wishlistId = wishlist[id];
 
-  try {
-    const wishlistId = wishlist[vendorId];
-
-    // Remove from wishlist
-    if (wishlistId) {
-      await apiFetch(`/wishlists/${wishlistId}`, {
-        method: "DELETE",
+    if (wishlistId === 0) {
+      setWishlist((previous) => {
+        const next = { ...previous };
+        delete next[id];
+        return next;
       });
-
-      setWishlist((prev) => {
-        const updated = { ...prev };
-        delete updated[vendorId];
-        return updated;
-      });
-
       return;
     }
 
-    // Get logged-in user
-    const userData = await apiFetch("/user");
-    const userId = userData.user?.id;
+    try {
+      if (wishlistId) {
+        await apiFetch(`/wishlists/${wishlistId}`, { method: "DELETE" });
+        setWishlist((previous) => {
+          const next = { ...previous };
+          delete next[id];
+          return next;
+        });
+        return;
+      }
 
-    if (!userId) {
-      console.error("User ID not found");
-      return;
+      if (!localStorage.getItem("auth_token")) {
+        setWishlist((previous) => ({ ...previous, [id]: 0 }));
+        return;
+      }
+
+      const userData = await apiFetch("/user");
+      const userId = userData.user?.id;
+      if (!userId) {
+        throw new Error("Unable to identify the signed-in user.");
+      }
+
+      const result = await apiFetch("/wishlists", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          wishlistable_type: "App\\Models\\Vendor",
+          wishlistable_id: id,
+        }),
+      });
+      setWishlist((previous) => ({
+        ...previous,
+        [id]: result.wishlist.id,
+      }));
+    } catch (error) {
+      console.error("Failed to update wishlist:", error);
     }
-
-    // Add to wishlist
-    const response = await apiFetch("/wishlists", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: userId,
-        wishlistable_type: "App\\Models\\Vendor",
-        wishlistable_id: vendorId,
-      }),
-    });
-
-    setWishlist((prev) => ({
-      ...prev,
-      [vendorId]: response.wishlist.id,
-    }));
-  } catch (error) {
-    console.error("Wishlist operation failed:", error);
-  }
-};
+  };
 
   const categoryIcons: Record<string, any> = {
     "Restaurants & Food": Utensils,
@@ -224,7 +233,7 @@ useEffect(() => {
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && navigate(`/services?q=${q}`)}
+                onKeyDown={(e) => e.key === "Enter" && runSearch()}
                 placeholder="Search businesses, services, products..."
                 className="w-full pl-9 pr-3 py-3 text-sm text-slate-700 focus:outline-none rounded-xl"
               />
@@ -244,7 +253,7 @@ useEffect(() => {
               <MapPin size={14} className="text-brand-500" />
               <span>Dindigul</span>
             </div>
-            <Button onClick={() => navigate(`/services?q=${q}`)} size="lg" className="rounded-xl">
+            <Button onClick={runSearch} size="lg" className="rounded-xl">
               <Search size={16} />
               Search
             </Button>
@@ -254,41 +263,33 @@ useEffect(() => {
 
       {/* Category shortcuts */}
       {/* Category shortcuts */}
-<section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-xl font-bold text-slate-800">
-      Browse by Category
-    </h2>
-
-    <Link to="/categories" className="text-sm text-brand-600 hover:underline flex items-center gap-1">
-  View all <ChevronRight size={14} />
-</Link>
-  </div>
-
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-    {industries.slice(0, 4).map((ind) => {
-      const Icon = categoryIcons[ind.name] || Building2;
-
-      return (
-        <Link
-          key={ind.id}
-          to={`/services?industry_id=${ind.id}`}
-          className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group"
-        >
-          <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors text-xl">
-            <Icon size={22} />
-          </div>
-
-          <span className="text-xs font-medium text-slate-600 leading-tight">
-            {ind.name}
-          </span>
-
-          
-        </Link>
-      );
-    })}
-  </div>
-</section>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-800">Browse by Category</h2>
+          <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">View all <ChevronRight size={14} /></Link>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          {industries.slice(0, 12).map((ind) => {
+            const Icon = categoryIcons[ind.name] || Building2;
+            return (
+              <Link key={ind.id} to={`/services?industry_id=${ind.id}`}
+                className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all text-center group">
+                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors text-xl">
+                  {ind.icon_url ? (
+                    <img src={ind.icon_url} alt="" className="w-6 h-6 object-contain" />
+                  ) : (
+                    <Icon size={20} />
+                  )}
+                </div>
+                <span className="text-xs font-medium text-slate-600 leading-tight">{ind.name.split(" ")[0]}</span>
+                <span className="text-xs text-slate-400">
+                  {vendors.filter((vendor) => vendor.industry_id === ind.id).length}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Featured Businesses */}
       <section className="bg-slate-50 py-12">
@@ -301,24 +302,27 @@ useEffect(() => {
             <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">See all <ChevronRight size={14} /></Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {vendors.slice(0, 6).map((b) => (
+            {[...vendors]
+              .sort(
+                (a, b) =>
+                  Number(b.is_featured) - Number(a.is_featured) ||
+                  Number(b.avg_rating || 0) - Number(a.avg_rating || 0)
+              )
+              .slice(0, 6)
+              .map((b) => (
               <div key={b.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group">
                 <div className="relative h-44 overflow-hidden">
-                 <img
-  src={b.cover_url || b.logo_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"}
-  alt={b.business_name}
-  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-/>
+                  <img src={b.cover_url || b.logo_url || "https://images.unsplash.com/photo-1517244683847-7456b63c5969"} alt={b.business_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   <button
                     onClick={() => toggleWishlist(b.id)}
                     className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
                   >
                     <Heart
-  size={15}
-  fill={wishlist[b.id] ? "#f97316" : "none"}
-  className={wishlist[b.id] ? "text-brand-500" : "text-slate-500"}
-/>
+                      size={15}
+                      fill={wishlist[b.id] !== undefined ? "#f97316" : "none"}
+                      className={wishlist[b.id] !== undefined ? "text-brand-500" : "text-slate-500"}
+                    />
                   </button>
                   {b.plan_type === "premium" && (
                     <Badge variant="premium" className="absolute top-3 left-3">⭐ Premium</Badge>
@@ -326,28 +330,20 @@ useEffect(() => {
                 </div>
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    <img
-  src={b.logo_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"}
-  alt={b.business_name}
-  className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
-/>
+                    <img src={b.logo_url || b.cover_url || "https://images.unsplash.com/photo-1414235077428-338989a2e8c0"} alt={b.business_name} className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-slate-800 text-sm truncate">{b.business_name}</h3>
                       <p className="text-xs text-brand-600 font-medium">{b.industry?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
-                    <MapPin size={11} />{b.city}
+                    <MapPin size={11} />{b.city || b.address_line1 || "Dindigul"}
                   </div>
                   <div className="flex items-center gap-1 mt-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={11} fill={i < Math.floor(Number(b.avg_rating)) ? "#f97316" : "none"} className={
-  i < Math.floor(Number(b.avg_rating))
-    ? "text-brand-500"
-    : "text-slate-300"
-} />
+                      <Star key={i} size={11} fill={i < Math.floor(Number(b.avg_rating || 0)) ? "#f97316" : "none"} className={i < Math.floor(Number(b.avg_rating || 0)) ? "text-brand-500" : "text-slate-300"} />
                     ))}
-                    <span className="text-xs text-slate-500 ml-1">{Number(b.avg_rating).toFixed(1)} ({b.review_count})</span>
+                    <span className="text-xs text-slate-500 ml-1">{Number(b.avg_rating || 0)} ({b.review_count || 0})</span>
                   </div>
                   <Link to={`/vendor/${b.slug}`} className="mt-3 block text-center text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 py-2 rounded-lg transition-colors">
                     View Profile →
@@ -360,65 +356,28 @@ useEffect(() => {
       </section>
 
       {/* Popular Services */}
-<section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-xl font-bold text-slate-800">
-      Popular Services
-    </h2>
-
-    <Link
-      to="/services"
-      className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-    >
-      Browse all <ChevronRight size={14} />
-    </Link>
-  </div>
-
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-    {services.slice(0, 6).map((s) => (
-      <div
-        key={s.id}
-        className="flex gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all"
-      >
-        <img
-          src={
-            s.banner_image_url ||
-            "https://images.unsplash.com/photo-1497366811353-6870744d04b2"
-          }
-          alt={s.title}
-          className="w-20 h-20 rounded-xl object-cover shrink-0"
-        />
-
-        <div className="flex-1 min-w-0">
-          <Badge variant="info" className="mb-1.5">
-            {s.sub_industry?.name}
-          </Badge>
-
-          <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1">
-            {s.title}
-          </h3>
-
-          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
-            {s.description}
-          </p>
-
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm font-bold text-brand-600">
-              ₹{s.discounted_price || s.price}
-            </span>
-
-            <Link
-              to="/services"
-              className="text-xs text-brand-600 hover:underline font-medium"
-            >
-              View →
-            </Link>
-          </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-slate-800">Popular Services</h2>
+          <Link to="/services" className="text-sm text-brand-600 hover:underline flex items-center gap-1">Browse all <ChevronRight size={14} /></Link>
         </div>
-      </div>
-    ))}
-  </div>
-</section>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {services.map((s) => (
+            <div key={s.id} className="flex gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all">
+              <img src={s.banner_image_url || "https://images.unsplash.com/photo-1497366811353-6870744d04b2"} alt={s.title} className="w-20 h-20 rounded-xl object-cover shrink-0" />
+              <div className="flex-1 min-w-0">
+                <Badge variant="info" className="mb-1.5">{s.sub_industry?.name}</Badge>
+                <h3 className="font-bold text-slate-800 text-sm leading-snug line-clamp-1">{s.title}</h3>
+                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.description}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm font-bold text-brand-600">₹{s.discounted_price || s.price}</span>
+                  <Link to={`/services/${s.id}`} className="text-xs text-brand-600 hover:underline font-medium">View →</Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Products & Jobs side-by-side */}
       <section className="bg-slate-50 py-12">
@@ -431,7 +390,7 @@ useEffect(() => {
                 <Link to="/products" className="text-sm text-brand-600 hover:underline flex items-center gap-1">See all <ChevronRight size={14} /></Link>
               </div>
               <div className="space-y-3">
-  {products.map((p) => (
+  {products.slice(0, 5).map((p) => (
     <Link
       key={p.id}
       to={`/products/${p.id}`}
@@ -474,7 +433,7 @@ useEffect(() => {
                 <Link to="/jobs" className="text-sm text-brand-600 hover:underline flex items-center gap-1">Browse all <ChevronRight size={14} /></Link>
               </div>
               <div className="space-y-3">
-                {jobPostings.map((j) => (
+                {jobPostings.slice(0, 5).map((j) => (
                   <Link key={j.id} to={`/jobs/${j.id}`} className="flex gap-3 p-4 bg-white rounded-xl border border-slate-200 hover:border-brand-200 hover:shadow-sm transition-all block">
                     <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
                       <Briefcase size={18} className="text-brand-500" />
@@ -483,7 +442,7 @@ useEffect(() => {
                       <h3 className="font-semibold text-slate-700 text-sm">{j.title}</h3>
                       <p className="text-xs text-slate-500">{j.vendor?.business_name}</p>
                       <div className="flex items-center gap-3 mt-1.5">
-                        <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin size={10} />{j.location}</span>
+                        <span className="flex items-center gap-1 text-xs text-slate-400"><MapPin size={10} />{j.location || "Dindigul"}</span>
                         <Badge variant="info">{j.job_type}</Badge>
                       </div>
                     </div>
@@ -517,7 +476,7 @@ useEffect(() => {
   </div>
 
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-    {events.map((event) => (
+    {events.slice(0, 3).map((event) => (
       <div
         key={event.id}
         className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-all"
@@ -532,7 +491,7 @@ useEffect(() => {
 
         <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
           <MapPin size={12} />
-          {event.location}
+          {event.venue_name || event.venue_address || event.location}
         </div>
 
         <div className="flex items-center justify-between mt-4">
@@ -562,15 +521,15 @@ useEffect(() => {
           <Link to="/tourism" className="text-sm text-brand-600 hover:underline flex items-center gap-1">See all <ChevronRight size={14} /></Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {tourismPlaces.map((place) => (
-            <Link key={place.id} to={`/tourism/${place.id}`} className="group relative rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
+          {tourismPlaces.slice(0, 4).map((place) => (
+            <Link key={place.id} to={`/tourism?q=${encodeURIComponent(place.name)}`} className="group relative rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all">
               <div className="aspect-[3/4] relative">
-                <img src={place.cover_image_url} alt={place.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <img src={place.cover_image_url || "https://images.unsplash.com/photo-1506905925346-21bda4d32df4"} alt={place.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <h3 className="text-white font-bold text-sm leading-tight">{place.name}</h3>
                   <p className="text-white/70 text-xs mt-0.5">{place.tourism_category?.name}</p>
-                  <Badge variant="info" className="mt-1.5">{place.category}</Badge>
+                  <Badge variant="info" className="mt-1.5">{place.tourism_category?.name || place.category}</Badge>
                 </div>
               </div>
             </Link>
