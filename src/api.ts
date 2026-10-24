@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = "https://mydindigul-production-7395.up.railway.app/api";
 
 export async function apiFetch(
   endpoint: string,
